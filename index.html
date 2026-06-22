@@ -146,6 +146,17 @@
   .rtable td.calc{padding:8px 12px;text-align:right;font-family:'Spline Sans Mono'}
   .cellin{width:100%;background:var(--panel);border:1px solid var(--accent);border-radius:6px;color:var(--ink);font-family:'Spline Sans Mono';text-align:right;padding:5px 8px;outline:none}
   .empty{color:var(--muted);font-size:.85rem;padding:20px;text-align:center}
+  .mfilter{position:relative;display:inline-block}
+  .mfbtn{background:var(--bg2);border:1px solid var(--line2);border-radius:8px;color:var(--ink2);font-family:inherit;font-size:.84rem;padding:7px 11px;cursor:pointer;display:inline-flex;align-items:center;gap:5px}
+  .mfbtn:hover{border-color:var(--line2);color:var(--ink)}
+  .mfbtn.active{border-color:var(--accent);color:var(--accent)}
+  .mfbtn .ar{font-size:.7rem;opacity:.7}
+  .mfpanel{display:none;position:absolute;top:calc(100% + 5px);left:0;z-index:30;background:var(--panel2);border:1px solid var(--line2);border-radius:10px;padding:7px;min-width:160px;max-height:280px;overflow-y:auto;box-shadow:0 10px 28px rgba(0,0,0,.45)}
+  .mfpanel.open{display:block}
+  .mfpanel label{display:flex;align-items:center;gap:9px;padding:6px 9px;border-radius:6px;font-size:.83rem;cursor:pointer;color:var(--ink2);white-space:nowrap}
+  .mfpanel label:hover{background:var(--bg2);color:var(--ink)}
+  .mfpanel input[type=checkbox]{width:15px;height:15px;margin:0;accent-color:var(--accent);cursor:pointer}
+  .mfpanel .all{border-bottom:1px solid var(--line);margin-bottom:4px;padding-bottom:8px;color:var(--ink);font-weight:600}
 </style>
 </head>
 <body>
@@ -227,10 +238,10 @@
       <label style="font-size:.82rem;color:var(--ink2)">조회 월</label><select id="monthSel" onchange="renderHold()"></select>
       <span style="width:1px;height:20px;background:var(--line2);margin:0 4px"></span>
       <input id="fltQ" placeholder="🔎 종목 검색" oninput="holdFilter.q=this.value;renderHold()" style="width:130px">
-      <select id="fltWho" onchange="holdFilter.who=this.value;renderHold()"></select>
-      <select id="fltAcct" onchange="holdFilter.account=this.value;renderHold()"></select>
-      <select id="fltGubun" onchange="holdFilter.gubun=this.value;renderHold()"></select>
-      <select id="fltCur" onchange="holdFilter.currency=this.value;renderHold()"></select>
+      <div class="mfilter"><button class="mfbtn" id="mfbtnwho" onclick="toggleMF(event,'who')">소유자<span class="ar">▾</span></button><div class="mfpanel" id="mfwho"></div></div>
+      <div class="mfilter"><button class="mfbtn" id="mfbtnaccount" onclick="toggleMF(event,'account')">계좌<span class="ar">▾</span></button><div class="mfpanel" id="mfaccount"></div></div>
+      <div class="mfilter"><button class="mfbtn" id="mfbtngubun" onclick="toggleMF(event,'gubun')">자산종류<span class="ar">▾</span></button><div class="mfpanel" id="mfgubun"></div></div>
+      <div class="mfilter"><button class="mfbtn" id="mfbtncurrency" onclick="toggleMF(event,'currency')">통화<span class="ar">▾</span></button><div class="mfpanel" id="mfcurrency"></div></div>
       <button class="btn ghost sm" onclick="resetHoldFilter()">필터 초기화</button>
       <span id="monthHint" style="font-size:.76rem;color:var(--muted)"></span>
     </div></div>
@@ -282,7 +293,7 @@ const mLabel=m=>{const[y,mo]=m.split('-');return y.slice(2)+'.'+(+mo);};
 /* ---- state ---- */
 let accounts=[],gubuns=[],cats=[],holdings=[],savings={},config={start_asset:180000000,rate:7,infl:3,end_year:2056};
 let loaded=false,viewMonth=nowMonth;
-let holdFilter={who:'',account:'',gubun:'',currency:'',q:''},holdSort={key:'',dir:1};
+let holdFilter={q:''},holdHide={who:new Set(),account:new Set(),gubun:new Set(),currency:new Set()},holdSort={key:'',dir:1};
 const WHO=['수진','예도'],CUR=['원화','달러'];
 const typeColor={'주식':'var(--accent)','채권':'var(--blue)','금':'var(--gold)','현금':'var(--purple)','기타':'var(--muted)'};
 const acctLabels=()=>accounts.map(a=>((a.inst||'')+' '+(a.kind||'')).trim());
@@ -442,20 +453,33 @@ $('#investAmt').addEventListener('input',renderAllocAll);
 /* ---- holdings ---- */
 function opts(arr,sel){return arr.map(o=>`<option ${o===sel?'selected':''}>${o}</option>`).join('')}
 function sortVal(h,k){if(k==='gain')return h.val-h.buy;if(k==='rate')return h.buy?(h.val-h.buy)/h.buy:0;if(k==='buy'||k==='val')return h[k];return (h[k]||'').toString();}
-function fillHoldFilters(vm){const hs=holdings.filter(h=>h.month===vm);const fill=(id,key,val,ph)=>{const o=['<option value="">'+ph+'</option>'].concat([...new Set(hs.map(h=>h[key]).filter(Boolean))].sort().map(v=>`<option ${v===val?'selected':''}>${v}</option>`));$('#'+id).innerHTML=o.join('');};fill('fltWho','who',holdFilter.who,'소유자 전체');fill('fltAcct','account',holdFilter.account,'계좌 전체');fill('fltGubun','gubun',holdFilter.gubun,'자산종류 전체');fill('fltCur','currency',holdFilter.currency,'통화 전체');}
+const MFLAB={who:'소유자',account:'계좌',gubun:'자산종류',currency:'통화'};
+function renderMFs(vm){const hs=holdings.filter(h=>h.month===vm);['who','account','gubun','currency'].forEach(key=>{
+  const vals=[...new Set(hs.map(h=>h[key]).filter(Boolean))].sort(),hidden=holdHide[key];
+  let html=`<label class="all"><input type="checkbox" ${hidden.size===0?'checked':''} onchange="mfAll('${key}',this.checked)">(전체 선택)</label>`;
+  html+=vals.map(v=>`<label><input type="checkbox" ${hidden.has(v)?'':'checked'} data-v="${(''+v).replace(/"/g,'&quot;')}" onchange="mfToggle('${key}',this.dataset.v,this.checked)">${v}</label>`).join('');
+  $('#mf'+key).innerHTML=html;
+  const btn=$('#mfbtn'+key),shown=vals.filter(v=>!hidden.has(v)).length;
+  if(hidden.size>0){btn.classList.add('active');btn.innerHTML=`${MFLAB[key]} (${shown}/${vals.length})<span class="ar">▾</span>`;}
+  else{btn.classList.remove('active');btn.innerHTML=`${MFLAB[key]}<span class="ar">▾</span>`;}
+});}
+window.mfToggle=(key,v,checked)=>{if(checked)holdHide[key].delete(v);else holdHide[key].add(v);renderHold();};
+window.mfAll=(key,checked)=>{if(checked)holdHide[key].clear();else{const hs=holdings.filter(h=>h.month===viewMonth);[...new Set(hs.map(h=>h[key]).filter(Boolean))].forEach(v=>holdHide[key].add(v));}renderHold();};
+window.toggleMF=(e,key)=>{e.stopPropagation();const p=$('#mf'+key),was=p.classList.contains('open');document.querySelectorAll('.mfpanel').forEach(x=>x.classList.remove('open'));if(!was)p.classList.add('open');};
+document.addEventListener('click',e=>{if(e.target.closest('.mfilter'))return;document.querySelectorAll('.mfpanel.open').forEach(x=>x.classList.remove('open'));});
 function updateSortArrows(){['name','who','account','gubun','currency','buy','val','gain','rate'].forEach(k=>{const el=$('#hS'+k);if(!el)return;if(!el.dataset.base)el.dataset.base=el.textContent.replace(/[▲▼\s]+$/,'');el.textContent=el.dataset.base+(holdSort.key===k?(holdSort.dir>0?' ▲':' ▼'):'');el.style.color=holdSort.key===k?'var(--accent)':'';});}
 window.setSort=k=>{if(holdSort.key===k)holdSort.dir*=-1;else{holdSort.key=k;holdSort.dir=1;}renderHold();};
-window.resetHoldFilter=()=>{holdFilter={who:'',account:'',gubun:'',currency:'',q:''};holdSort={key:'',dir:1};const q=$('#fltQ');if(q)q.value='';renderHold();};
+window.resetHoldFilter=()=>{holdFilter={q:''};['who','account','gubun','currency'].forEach(k=>holdHide[k].clear());holdSort={key:'',dir:1};const q=$('#fltQ');if(q)q.value='';renderHold();};
 function renderHold(){
   const sel=$('#monthSel'),vm=sel.value||nowMonth;viewMonth=vm;const isCur=vm===nowMonth;
-  fillHoldFilters(vm);
-  const F=holdFilter;
+  renderMFs(vm);
+  const q=holdFilter.q;
   let rows=holdings.map((h,gi)=>({h,gi})).filter(o=>o.h.month===vm)
-    .filter(({h})=>(!F.who||h.who===F.who)&&(!F.account||h.account===F.account)&&(!F.gubun||h.gubun===F.gubun)&&(!F.currency||h.currency===F.currency)&&(!F.q||(h.name||'').toLowerCase().includes(F.q.toLowerCase())));
+    .filter(({h})=>(!q||(h.name||'').toLowerCase().includes(q.toLowerCase()))&&!holdHide.who.has(h.who)&&!holdHide.account.has(h.account)&&!holdHide.gubun.has(h.gubun)&&!holdHide.currency.has(h.currency));
   if(holdSort.key){const k=holdSort.key,d=holdSort.dir;rows.sort((a,b)=>{const va=sortVal(a.h,k),vb=sortVal(b.h,k);return va<vb?-d:va>vb?d:0;});}
   updateSortArrows();
-  const anyF=F.who||F.account||F.gubun||F.currency||F.q;
-  $('#monthHint').textContent=(isCur?'이번 달 — 수정 가능':'과거 — 읽기 전용')+(anyF?` · ${rows.length}개 필터됨`:'');
+  const anyF=q||holdHide.who.size||holdHide.account.size||holdHide.gubun.size||holdHide.currency.size;
+  $('#monthHint').textContent=(isCur?'이번 달 — 수정 가능':'과거 — 읽기 전용')+(anyF?` · ${rows.length}개 보임`:'');
   const AL=acctLabels();let body='';
   rows.forEach(({h,gi})=>{const g=h.val-h.buy,r=h.buy?g/h.buy*100:0,ro=isCur?'':'readonly disabled';
     body+=`<tr><td><input value="${h.name}" ${ro} onchange="holdings[${gi}].name=this.value;afterChange()"></td><td><select ${ro} onchange="holdings[${gi}].who=this.value;afterChange()">${opts(WHO,h.who)}</select></td><td><select ${ro} onchange="holdings[${gi}].account=this.value;afterChange()">${opts(AL,h.account)}</select></td><td><select ${ro} onchange="holdings[${gi}].gubun=this.value;afterChange()">${opts(gubuns,h.gubun)}</select></td><td><select ${ro} onchange="holdings[${gi}].currency=this.value;afterChange()">${opts(CUR,h.currency)}</select></td><td class="r"><input class="mono money" data-i="${gi}" data-f="buy" value="${man(h.buy)}" ${ro}></td><td class="r"><input class="mono money" data-i="${gi}" data-f="val" value="${man(h.val)}" ${ro}></td><td class="r mono ${g>=0?'up':'down'}">${g>=0?'+':''}${won(g)}</td><td class="r mono ${r>=0?'up':'down'}">${pct(r)}</td><td class="c">${isCur?`<span class="x" style="color:var(--muted);cursor:pointer" onclick="holdings.splice(${gi},1);afterChange()">✕</span>`:''}</td></tr>`;});
