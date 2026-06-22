@@ -223,9 +223,19 @@
     <div class="ph"><div><h1>보유내역</h1><p>평가금만 수정 · 입력 1원 단위, 표시 만원</p></div>
       <div style="display:flex;gap:9px"><button class="btn ghost" onclick="addRow()"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>새 종목</button><button class="btn ghost" onclick="cloneMonth()"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>전월 복제</button></div></div>
     <div class="banner">💡 평가금 칸 <b>클릭=원 단위 입력</b>, 벗어나면 만원 표시 · 입력하면 <b>자동 저장</b>돼요(왼쪽 아래 상태 확인). 새 달엔 "전월 복제"로 지난달 종목 가져와 평가금만 수정.</div>
-    <div class="panel" style="padding:16px 20px;margin-bottom:14px"><div class="selrow"><label style="font-size:.82rem;color:var(--ink2)">조회 월</label><select id="monthSel" onchange="renderHold()"></select><span id="monthHint" style="font-size:.76rem;color:var(--muted)"></span></div></div>
+    <div class="panel" style="padding:16px 20px;margin-bottom:14px"><div class="selrow" style="row-gap:10px">
+      <label style="font-size:.82rem;color:var(--ink2)">조회 월</label><select id="monthSel" onchange="renderHold()"></select>
+      <span style="width:1px;height:20px;background:var(--line2);margin:0 4px"></span>
+      <input id="fltQ" placeholder="🔎 종목 검색" oninput="holdFilter.q=this.value;renderHold()" style="width:130px">
+      <select id="fltWho" onchange="holdFilter.who=this.value;renderHold()"></select>
+      <select id="fltAcct" onchange="holdFilter.account=this.value;renderHold()"></select>
+      <select id="fltGubun" onchange="holdFilter.gubun=this.value;renderHold()"></select>
+      <select id="fltCur" onchange="holdFilter.currency=this.value;renderHold()"></select>
+      <button class="btn ghost sm" onclick="resetHoldFilter()">필터 초기화</button>
+      <span id="monthHint" style="font-size:.76rem;color:var(--muted)"></span>
+    </div></div>
     <div class="panel" style="padding:18px 20px">
-      <table id="holdTable"><thead><tr><th>종목</th><th>소유자</th><th>계좌</th><th>자산종류</th><th>통화</th><th class="r">매입금</th><th class="r">평가금</th><th class="r">평가손익</th><th class="r">수익률</th><th class="c"></th></tr></thead><tbody id="holdBody"></tbody><tfoot id="holdFoot"></tfoot></table>
+      <table id="holdTable"><thead><tr><th onclick="setSort('name')" style="cursor:pointer" id="hSname">종목</th><th onclick="setSort('who')" style="cursor:pointer" id="hSwho">소유자</th><th onclick="setSort('account')" style="cursor:pointer" id="hSaccount">계좌</th><th onclick="setSort('gubun')" style="cursor:pointer" id="hSgubun">자산종류</th><th onclick="setSort('currency')" style="cursor:pointer" id="hScurrency">통화</th><th class="r" onclick="setSort('buy')" style="cursor:pointer" id="hSbuy">매입금</th><th class="r" onclick="setSort('val')" style="cursor:pointer" id="hSval">평가금</th><th class="r" onclick="setSort('gain')" style="cursor:pointer" id="hSgain">평가손익</th><th class="r" onclick="setSort('rate')" style="cursor:pointer" id="hSrate">수익률</th><th class="c"></th></tr></thead><tbody id="holdBody"></tbody><tfoot id="holdFoot"></tfoot></table>
     </div>
   </section>
   <section class="page" id="master">
@@ -257,7 +267,7 @@
 <script>
 /* ====== 너희 Supabase 정보 ====== */
 const SUPABASE_URL = 'https://lniqsiyworohiuaztdhu.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxuaXFzaXl3b3JvaGl1YXp0ZGh1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MjEwOTksImV4cCI6MjA5NjM5NzA5OX0.oH8yQAyQKYfa7XsgXkAL0x2BDjjkYe-jGOnTPpQtUGc';
+const SUPABASE_KEY = '여기에_anon_public_키_붙여넣기';
 /* ================================ */
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -272,9 +282,10 @@ const mLabel=m=>{const[y,mo]=m.split('-');return y.slice(2)+'.'+(+mo);};
 /* ---- state ---- */
 let accounts=[],gubuns=[],cats=[],holdings=[],savings={},config={start_asset:180000000,rate:7,infl:3,end_year:2056};
 let loaded=false,viewMonth=nowMonth;
+let holdFilter={who:'',account:'',gubun:'',currency:'',q:''},holdSort={key:'',dir:1};
 const WHO=['수진','예도'],CUR=['원화','달러'];
 const typeColor={'주식':'var(--accent)','채권':'var(--blue)','금':'var(--gold)','현금':'var(--purple)','기타':'var(--muted)'};
-const acctLabels=()=>accounts.map(a=>(a.inst||'')+' '+(a.kind||''));
+const acctLabels=()=>accounts.map(a=>((a.inst||'')+' '+(a.kind||'')).trim());
 
 /* ---- auth ---- */
 async function doLogin(){
@@ -430,17 +441,28 @@ $('#investAmt').addEventListener('input',renderAllocAll);
 
 /* ---- holdings ---- */
 function opts(arr,sel){return arr.map(o=>`<option ${o===sel?'selected':''}>${o}</option>`).join('')}
+function sortVal(h,k){if(k==='gain')return h.val-h.buy;if(k==='rate')return h.buy?(h.val-h.buy)/h.buy:0;if(k==='buy'||k==='val')return h[k];return (h[k]||'').toString();}
+function fillHoldFilters(vm){const hs=holdings.filter(h=>h.month===vm);const fill=(id,key,val,ph)=>{const o=['<option value="">'+ph+'</option>'].concat([...new Set(hs.map(h=>h[key]).filter(Boolean))].sort().map(v=>`<option ${v===val?'selected':''}>${v}</option>`));$('#'+id).innerHTML=o.join('');};fill('fltWho','who',holdFilter.who,'소유자 전체');fill('fltAcct','account',holdFilter.account,'계좌 전체');fill('fltGubun','gubun',holdFilter.gubun,'자산종류 전체');fill('fltCur','currency',holdFilter.currency,'통화 전체');}
+function updateSortArrows(){['name','who','account','gubun','currency','buy','val','gain','rate'].forEach(k=>{const el=$('#hS'+k);if(!el)return;if(!el.dataset.base)el.dataset.base=el.textContent.replace(/[▲▼\s]+$/,'');el.textContent=el.dataset.base+(holdSort.key===k?(holdSort.dir>0?' ▲':' ▼'):'');el.style.color=holdSort.key===k?'var(--accent)':'';});}
+window.setSort=k=>{if(holdSort.key===k)holdSort.dir*=-1;else{holdSort.key=k;holdSort.dir=1;}renderHold();};
+window.resetHoldFilter=()=>{holdFilter={who:'',account:'',gubun:'',currency:'',q:''};holdSort={key:'',dir:1};const q=$('#fltQ');if(q)q.value='';renderHold();};
 function renderHold(){
   const sel=$('#monthSel'),vm=sel.value||nowMonth;viewMonth=vm;const isCur=vm===nowMonth;
-  $('#monthHint').textContent=isCur?'이번 달 — 수정 가능':'과거 — 읽기 전용';
-  const rows=holdings.map((h,gi)=>({h,gi})).filter(o=>o.h.month===vm);
+  fillHoldFilters(vm);
+  const F=holdFilter;
+  let rows=holdings.map((h,gi)=>({h,gi})).filter(o=>o.h.month===vm)
+    .filter(({h})=>(!F.who||h.who===F.who)&&(!F.account||h.account===F.account)&&(!F.gubun||h.gubun===F.gubun)&&(!F.currency||h.currency===F.currency)&&(!F.q||(h.name||'').toLowerCase().includes(F.q.toLowerCase())));
+  if(holdSort.key){const k=holdSort.key,d=holdSort.dir;rows.sort((a,b)=>{const va=sortVal(a.h,k),vb=sortVal(b.h,k);return va<vb?-d:va>vb?d:0;});}
+  updateSortArrows();
+  const anyF=F.who||F.account||F.gubun||F.currency||F.q;
+  $('#monthHint').textContent=(isCur?'이번 달 — 수정 가능':'과거 — 읽기 전용')+(anyF?` · ${rows.length}개 필터됨`:'');
   const AL=acctLabels();let body='';
   rows.forEach(({h,gi})=>{const g=h.val-h.buy,r=h.buy?g/h.buy*100:0,ro=isCur?'':'readonly disabled';
     body+=`<tr><td><input value="${h.name}" ${ro} onchange="holdings[${gi}].name=this.value;afterChange()"></td><td><select ${ro} onchange="holdings[${gi}].who=this.value;afterChange()">${opts(WHO,h.who)}</select></td><td><select ${ro} onchange="holdings[${gi}].account=this.value;afterChange()">${opts(AL,h.account)}</select></td><td><select ${ro} onchange="holdings[${gi}].gubun=this.value;afterChange()">${opts(gubuns,h.gubun)}</select></td><td><select ${ro} onchange="holdings[${gi}].currency=this.value;afterChange()">${opts(CUR,h.currency)}</select></td><td class="r"><input class="mono money" data-i="${gi}" data-f="buy" value="${man(h.buy)}" ${ro}></td><td class="r"><input class="mono money" data-i="${gi}" data-f="val" value="${man(h.val)}" ${ro}></td><td class="r mono ${g>=0?'up':'down'}">${g>=0?'+':''}${won(g)}</td><td class="r mono ${r>=0?'up':'down'}">${pct(r)}</td><td class="c">${isCur?`<span class="x" style="color:var(--muted);cursor:pointer" onclick="holdings.splice(${gi},1);afterChange()">✕</span>`:''}</td></tr>`;});
-  $('#holdBody').innerHTML=body||`<tr><td colspan="10"><div class="empty">${isCur?'"새 종목" 또는 "전월 복제"로 시작하세요':'이 달 데이터가 없어요'}</div></td></tr>`;
+  $('#holdBody').innerHTML=body||`<tr><td colspan="10"><div class="empty">${anyF?'조건에 맞는 종목이 없어요':(isCur?'"새 종목" 또는 "전월 복제"로 시작하세요':'이 달 데이터가 없어요')}</div></td></tr>`;
   if(isCur)$$('#holdBody .money').forEach(el=>{el.addEventListener('focus',e=>e.target.value=holdings[+e.target.dataset.i][e.target.dataset.f]);el.addEventListener('blur',e=>{const i=+e.target.dataset.i,f=e.target.dataset.f;holdings[i][f]=parseNum(e.target.value);e.target.value=man(holdings[i][f]);afterChange();});});
   const tb=rows.reduce((s,o)=>s+o.h.buy,0),tv=rows.reduce((s,o)=>s+o.h.val,0),tg=tv-tb;
-  $('#holdFoot').innerHTML=rows.length?`<tr><td colspan="5">합계 · ${rows.length}종목</td><td class="r mono">${man(tb)}</td><td class="r mono">${man(tv)}</td><td class="r mono ${tg>=0?'up':'down'}">${tg>=0?'+':''}${won(tg)}</td><td class="r mono ${tg>=0?'up':'down'}">${pct(tb?tg/tb*100:0)}</td><td></td></tr>`:'';
+  $('#holdFoot').innerHTML=rows.length?`<tr><td colspan="5">${anyF?'필터 합계':'합계'} · ${rows.length}종목</td><td class="r mono">${man(tb)}</td><td class="r mono">${man(tv)}</td><td class="r mono ${tg>=0?'up':'down'}">${tg>=0?'+':''}${won(tg)}</td><td class="r mono ${tg>=0?'up':'down'}">${pct(tb?tg/tb*100:0)}</td><td></td></tr>`:'';
 }
 function fillMonthSel(){const M=months().slice().reverse();if(!M.includes(nowMonth))M.unshift(nowMonth);$('#monthSel').innerHTML=M.map(m=>`<option value="${m}" ${m===viewMonth?'selected':''}>${mLabel(m)}</option>`).join('');}
 window.addRow=()=>{holdings.push({month:nowMonth,name:'새 종목',who:'수진',account:acctLabels()[0]||'',gubun:gubuns[0]||'주식',currency:'원화',buy:0,val:0});viewMonth=nowMonth;afterChange();};
