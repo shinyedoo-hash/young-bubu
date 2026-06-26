@@ -7,8 +7,10 @@
 <style>
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=Spline+Sans+Mono:wght@400;500;600;700&display=swap');
   :root{--bg:#0c1413;--bg2:#0f1a18;--panel:#131f1d;--panel2:#182926;--line:#263a36;--line2:#2f4742;--ink:#e9f1ee;--ink2:#b4c7c1;--muted:#7d958e;--accent:#43dca2;--accent2:#2aa179;--blue:#4aa3d8;--gold:#d8b15a;--red:#e8675d;--purple:#9a8cd0}
+  body.light{--bg:#f4f7f6;--bg2:#e9eeec;--panel:#ffffff;--panel2:#f5f8f7;--line:#e6ebe9;--line2:#d5ddd9;--ink:#1a2320;--ink2:#4c5a55;--muted:#8a9690;--accent:#10976b;--accent2:#0c7d57;--blue:#2f80c8;--gold:#bf942c;--red:#db5247;--purple:#7868c2}
   *{box-sizing:border-box;margin:0;padding:0}
   body{background:radial-gradient(900px 500px at 12% -8%,rgba(67,220,162,.10),transparent 55%),radial-gradient(700px 500px at 100% 0%,rgba(74,163,216,.06),transparent 50%),var(--bg);color:var(--ink);font-family:'IBM Plex Sans KR',sans-serif;min-height:100vh}
+  body.light{background:radial-gradient(900px 500px at 12% -8%,rgba(16,151,107,.06),transparent 55%),radial-gradient(700px 500px at 100% 0%,rgba(47,128,200,.045),transparent 50%),var(--bg)}
   .mono{font-family:'Spline Sans Mono',monospace;font-feature-settings:"tnum"}
   /* login */
   .login{position:fixed;inset:0;background:var(--bg);display:grid;place-items:center;z-index:100}
@@ -184,6 +186,7 @@
   </nav>
   <div class="foot">
     <div class="ss"><span class="dotst" id="saveDot"></span><span id="saveTxt">불러오는 중…</span></div>
+    <button class="logout" onclick="toggleTheme()" id="themeBtn">🌙 어두운 테마</button>
     <button class="logout" onclick="doLogout()">로그아웃</button>
   </div>
 </aside>
@@ -389,8 +392,8 @@ function renderBar(){
   if(trendMode==='bar'){const gap=Math.min(20,(W-pl-pr)/n*0.3),bw=(W-pl-pr)/n-gap;
     data.forEach((d,i)=>{const x=pl+i*((W-pl-pr)/n)+gap/2,g=d.val-d.buy,bY=y(d.buy);
       s+=`<rect x="${x}" y="${bY}" width="${bw}" height="${H-pb-bY}" fill="var(--blue)" rx="3"/>`;
-      if(H-pb-bY>16)s+=`<text x="${x+bw/2}" y="${(bY+H-pb)/2+4}" fill="#cfe6f5" font-size="10" text-anchor="middle" font-family="Spline Sans Mono">${won(d.buy)}</text>`;
-      if(g>=0){const gy=y(d.val);s+=`<rect x="${x}" y="${gy}" width="${bw}" height="${bY-gy}" fill="var(--accent)" rx="3"/>`;if(bY-gy>15)s+=`<text x="${x+bw/2}" y="${(gy+bY)/2+4}" fill="#06241a" font-size="10" font-weight="600" text-anchor="middle" font-family="Spline Sans Mono">+${won(g)}</text>`;s+=`<text x="${x+bw/2}" y="${gy-7}" fill="var(--ink)" font-size="11" font-weight="600" text-anchor="middle" font-family="Spline Sans Mono">${(d.val/1e8).toFixed(2)}억</text>`;}
+      if(H-pb-bY>16)s+=`<text x="${x+bw/2}" y="${(bY+H-pb)/2+4}" fill="#ffffff" font-size="10" text-anchor="middle" font-family="Spline Sans Mono">${won(d.buy)}</text>`;
+      if(g>=0){const gy=y(d.val);s+=`<rect x="${x}" y="${gy}" width="${bw}" height="${bY-gy}" fill="var(--accent)" rx="3"/>`;if(bY-gy>15)s+=`<text x="${x+bw/2}" y="${(gy+bY)/2+4}" fill="#ffffff" font-size="10" font-weight="600" text-anchor="middle" font-family="Spline Sans Mono">+${won(g)}</text>`;s+=`<text x="${x+bw/2}" y="${gy-7}" fill="var(--ink)" font-size="11" font-weight="600" text-anchor="middle" font-family="Spline Sans Mono">${(d.val/1e8).toFixed(2)}억</text>`;}
       else{const gy=y(d.buy),h=y(d.val)-gy;s+=`<rect x="${x}" y="${gy}" width="${bw}" height="${h}" fill="var(--red)" rx="3"/>`;}
       s+=`<text x="${x+bw/2}" y="${H-pb+18}" fill="var(--muted)" font-size="11" text-anchor="middle" font-family="Spline Sans Mono">${mLabel(d.m)}</text>`;});
   }else{const x=i=>n>1?pl+(W-pl-pr)*(i/(n-1)):pl+(W-pl-pr)/2;
@@ -471,7 +474,7 @@ function updateSortArrows(){['name','who','account','gubun','currency','buy','va
 window.setSort=k=>{if(holdSort.key===k)holdSort.dir*=-1;else{holdSort.key=k;holdSort.dir=1;}renderHold();};
 window.resetHoldFilter=()=>{holdFilter={q:''};['who','account','gubun','currency'].forEach(k=>holdHide[k].clear());holdSort={key:'',dir:1};const q=$('#fltQ');if(q)q.value='';renderHold();};
 function renderHold(){
-  const sel=$('#monthSel'),vm=sel.value||nowMonth;viewMonth=vm;const isCur=vm===nowMonth;
+  const sel=$('#monthSel'),vm=sel.value||nowMonth;viewMonth=vm;
   renderMFs(vm);
   const q=holdFilter.q;
   let rows=holdings.map((h,gi)=>({h,gi})).filter(o=>o.h.month===vm)
@@ -479,18 +482,18 @@ function renderHold(){
   if(holdSort.key){const k=holdSort.key,d=holdSort.dir;rows.sort((a,b)=>{const va=sortVal(a.h,k),vb=sortVal(b.h,k);return va<vb?-d:va>vb?d:0;});}
   updateSortArrows();
   const anyF=q||holdHide.who.size||holdHide.account.size||holdHide.gubun.size||holdHide.currency.size;
-  $('#monthHint').textContent=(isCur?'이번 달 — 수정 가능':'과거 — 읽기 전용')+(anyF?` · ${rows.length}개 보임`:'');
+  $('#monthHint').textContent=anyF?`${rows.length}개 보임`:`${mLabel(vm)} · 언제든 수정 가능`;
   const AL=acctLabels();let body='';
-  rows.forEach(({h,gi})=>{const g=h.val-h.buy,r=h.buy?g/h.buy*100:0,ro=isCur?'':'readonly disabled';
-    body+=`<tr><td><input value="${h.name}" ${ro} onchange="holdings[${gi}].name=this.value;afterChange()"></td><td><select ${ro} onchange="holdings[${gi}].who=this.value;afterChange()">${opts(WHO,h.who)}</select></td><td><select ${ro} onchange="holdings[${gi}].account=this.value;afterChange()">${opts(AL,h.account)}</select></td><td><select ${ro} onchange="holdings[${gi}].gubun=this.value;afterChange()">${opts(gubuns,h.gubun)}</select></td><td><select ${ro} onchange="holdings[${gi}].currency=this.value;afterChange()">${opts(CUR,h.currency)}</select></td><td class="r"><input class="mono money" data-i="${gi}" data-f="buy" value="${man(h.buy)}" ${ro}></td><td class="r"><input class="mono money" data-i="${gi}" data-f="val" value="${man(h.val)}" ${ro}></td><td class="r mono ${g>=0?'up':'down'}">${g>=0?'+':''}${won(g)}</td><td class="r mono ${r>=0?'up':'down'}">${pct(r)}</td><td class="c">${isCur?`<span class="x" style="color:var(--muted);cursor:pointer" onclick="holdings.splice(${gi},1);afterChange()">✕</span>`:''}</td></tr>`;});
-  $('#holdBody').innerHTML=body||`<tr><td colspan="10"><div class="empty">${anyF?'조건에 맞는 종목이 없어요':(isCur?'"새 종목" 또는 "전월 복제"로 시작하세요':'이 달 데이터가 없어요')}</div></td></tr>`;
-  if(isCur)$$('#holdBody .money').forEach(el=>{el.addEventListener('focus',e=>e.target.value=holdings[+e.target.dataset.i][e.target.dataset.f]);el.addEventListener('blur',e=>{const i=+e.target.dataset.i,f=e.target.dataset.f;holdings[i][f]=parseNum(e.target.value);e.target.value=man(holdings[i][f]);afterChange();});});
+  rows.forEach(({h,gi})=>{const g=h.val-h.buy,r=h.buy?g/h.buy*100:0;
+    body+=`<tr><td><input value="${h.name}" onchange="holdings[${gi}].name=this.value;afterChange()"></td><td><select onchange="holdings[${gi}].who=this.value;afterChange()">${opts(WHO,h.who)}</select></td><td><select onchange="holdings[${gi}].account=this.value;afterChange()">${opts(AL,h.account)}</select></td><td><select onchange="holdings[${gi}].gubun=this.value;afterChange()">${opts(gubuns,h.gubun)}</select></td><td><select onchange="holdings[${gi}].currency=this.value;afterChange()">${opts(CUR,h.currency)}</select></td><td class="r"><input class="mono money" data-i="${gi}" data-f="buy" value="${man(h.buy)}"></td><td class="r"><input class="mono money" data-i="${gi}" data-f="val" value="${man(h.val)}"></td><td class="r mono ${g>=0?'up':'down'}">${g>=0?'+':''}${won(g)}</td><td class="r mono ${r>=0?'up':'down'}">${pct(r)}</td><td class="c"><span class="x" style="color:var(--muted);cursor:pointer" onclick="holdings.splice(${gi},1);afterChange()">✕</span></td></tr>`;});
+  $('#holdBody').innerHTML=body||`<tr><td colspan="10"><div class="empty">${anyF?'조건에 맞는 종목이 없어요':'"새 종목" 또는 "전월 복제"로 시작하세요'}</div></td></tr>`;
+  $$('#holdBody .money').forEach(el=>{el.addEventListener('focus',e=>{const v=holdings[+e.target.dataset.i][e.target.dataset.f];e.target.value=v?v.toLocaleString():'';});el.addEventListener('input',e=>{const n=parseNum(e.target.value);e.target.value=n?n.toLocaleString():'';});el.addEventListener('blur',e=>{const i=+e.target.dataset.i,f=e.target.dataset.f;holdings[i][f]=parseNum(e.target.value);e.target.value=man(holdings[i][f]);afterChange();});});
   const tb=rows.reduce((s,o)=>s+o.h.buy,0),tv=rows.reduce((s,o)=>s+o.h.val,0),tg=tv-tb;
   $('#holdFoot').innerHTML=rows.length?`<tr><td colspan="5">${anyF?'필터 합계':'합계'} · ${rows.length}종목</td><td class="r mono">${man(tb)}</td><td class="r mono">${man(tv)}</td><td class="r mono ${tg>=0?'up':'down'}">${tg>=0?'+':''}${won(tg)}</td><td class="r mono ${tg>=0?'up':'down'}">${pct(tb?tg/tb*100:0)}</td><td></td></tr>`:'';
 }
 function fillMonthSel(){const M=months().slice().reverse();if(!M.includes(nowMonth))M.unshift(nowMonth);$('#monthSel').innerHTML=M.map(m=>`<option value="${m}" ${m===viewMonth?'selected':''}>${mLabel(m)}</option>`).join('');}
-window.addRow=()=>{holdings.push({month:nowMonth,name:'새 종목',who:'수진',account:acctLabels()[0]||'',gubun:gubuns[0]||'주식',currency:'원화',buy:0,val:0});viewMonth=nowMonth;afterChange();};
-window.cloneMonth=()=>{const M=months().filter(m=>m<nowMonth).sort();if(!M.length){alert('복제할 지난달 데이터가 없어요.');return;}const prev=M[M.length-1];const src=holdings.filter(h=>h.month===prev);if(holdings.some(h=>h.month===nowMonth)&&!confirm('이번 달에 이미 종목이 있어요. 그래도 지난달 것을 추가로 복제할까요?'))return;src.forEach(h=>holdings.push({...h,month:nowMonth}));viewMonth=nowMonth;afterChange();};
+window.addRow=()=>{holdings.push({month:viewMonth,name:'새 종목',who:'수진',account:acctLabels()[0]||'',gubun:gubuns[0]||'주식',currency:'원화',buy:0,val:0});afterChange();};
+window.cloneMonth=()=>{const M=months().filter(m=>m<viewMonth).sort();if(!M.length){alert('복제할 이전 달 데이터가 없어요.');return;}const prev=M[M.length-1];const src=holdings.filter(h=>h.month===prev);if(holdings.some(h=>h.month===viewMonth)&&!confirm('이 달에 이미 종목이 있어요. 그래도 이전 달('+mLabel(prev)+') 것을 추가로 복제할까요?'))return;src.forEach(h=>holdings.push({...h,month:viewMonth}));afterChange();};
 
 /* ---- master ---- */
 function renderMaster(){let s='';accounts.forEach((a,i)=>{s+=`<tr><td><input value="${a.who||''}" onchange="accounts[${i}].who=this.value;afterChange()"></td><td><input value="${a.inst||''}" onchange="accounts[${i}].inst=this.value;afterChange()"></td><td><input value="${a.kind||''}" onchange="accounts[${i}].kind=this.value;afterChange()"></td><td><input value="${a.num||''}" onchange="accounts[${i}].num=this.value;afterChange()"></td><td class="c"><button class="btn ghost sm" onclick="accounts.splice(${i},1);afterChange()">✕</button></td></tr>`;});$('#acctBody').innerHTML=s||'<tr><td colspan="5"><div class="empty">계좌를 추가하세요</div></td></tr>';}
@@ -521,6 +524,11 @@ $('#startA').addEventListener('change',e=>{config.start_asset=parseNum(e.target.
 /* ---- orchestrate ---- */
 function renderAll(){fillMonthSel();renderCards();renderBar();renderCmpChips();renderCmp();renderCats();renderAllocAll();renderHold();renderMaster();fillYearSelects();}
 function afterChange(){renderAll();renderRetire();persist();}
+
+/* ---- theme ---- */
+function setTheme(t){document.body.classList.toggle('light',t==='light');try{localStorage.setItem('theme',t);}catch(e){}const b=$('#themeBtn');if(b)b.textContent=t==='light'?'☀️ 밝은 테마':'🌙 어두운 테마';if(loaded){try{renderBar();renderCmp();}catch(e){}}}
+window.toggleTheme=()=>setTheme(document.body.classList.contains('light')?'dark':'light');
+try{setTheme(localStorage.getItem('theme')||'dark');}catch(e){setTheme('dark');}
 
 /* ---- boot ---- */
 (async()=>{
