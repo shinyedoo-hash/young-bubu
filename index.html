@@ -159,6 +159,25 @@
   .mfpanel label:hover{background:var(--bg2);color:var(--ink)}
   .mfpanel input[type=checkbox]{width:15px;height:15px;margin:0;accent-color:var(--accent);cursor:pointer}
   .mfpanel .all{border-bottom:1px solid var(--line);margin-bottom:4px;padding-bottom:8px;color:var(--ink);font-weight:600}
+  .simrow{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line);font-size:.84rem}
+  .simrow .dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+  .simrow .snm{width:54px;color:var(--ink2)}
+  .simrow .samt{width:72px;text-align:right;font-family:'Spline Sans Mono';font-size:.77rem;color:var(--muted)}
+  .siminp{width:84px;background:var(--bg2);border:1px solid var(--line2);border-radius:7px;color:var(--ink);font-family:'Spline Sans Mono';text-align:right;padding:6px 8px;outline:none;font-size:.83rem}
+  .siminp:focus{border-color:var(--accent)}
+  .simrow .spp{margin-left:auto;font-family:'Spline Sans Mono';font-size:.82rem;color:var(--muted)}
+  .simrow .spp b{font-weight:600}
+  .arow2{display:grid;grid-template-columns:64px 1fr 168px;gap:12px;align-items:center;padding:18px 0 10px;border-top:1px solid var(--line)}
+  .arow2 .lab{display:flex;align-items:center;gap:8px;font-size:.85rem;color:var(--ink2)}
+  .arow2 .lab .dot{width:11px;height:11px;border-radius:3px;flex-shrink:0}
+  .bigbar{position:relative;height:28px;background:var(--bg2);border-radius:8px;margin-top:13px}
+  .bigbar .fill{position:absolute;left:0;top:0;bottom:0;border-radius:8px;display:flex;align-items:center;padding-left:9px;box-sizing:border-box}
+  .bigbar .fill .cp{font-size:.77rem;font-weight:700;color:#fff;font-family:'Spline Sans Mono';white-space:nowrap}
+  .bigbar .soft{position:absolute;top:0;bottom:0;opacity:.42;border-radius:0 8px 8px 0}
+  .bigbar .tline{position:absolute;top:-5px;bottom:-5px;width:2px;background:var(--ink);z-index:4}
+  .bigbar .tlab{position:absolute;top:-15px;font-size:.67rem;color:var(--ink2);font-family:'Spline Sans Mono';transform:translateX(-50%);white-space:nowrap;z-index:4}
+  .bigbar .gaplab{position:absolute;top:50%;transform:translate(-50%,-50%);font-size:.69rem;font-weight:700;font-family:'Spline Sans Mono';z-index:5;white-space:nowrap}
+  .arow2 .amt2{font-family:'Spline Sans Mono';font-size:.79rem;color:var(--ink2);text-align:right}
 </style>
 </head>
 <body>
@@ -223,14 +242,17 @@
       <div class="gubuns" id="gubunList"></div>
       <div style="font-size:.72rem;color:var(--muted)">구분 칩의 ✕로 삭제(쓰는 분류 있으면 옮길 곳 물어봄) · <button class="btn ghost sm" style="padding:3px 9px" onclick="addGubun()">+ 구분 추가</button></div>
     </div>
-    <div class="row2">
-      <div class="panel"><h3>자산종류 비중</h3><div class="desc">흰 선 = 이상(입력 비중) · 막대 = 현재(보유 기준)</div><div class="alloc" id="allocList"></div>
-        <div style="margin-top:18px"><div style="font-size:.78rem;color:var(--ink2);margin-bottom:6px">원화 : 달러 자산 비율</div><div class="curbar" id="curBar"></div></div>
+    <div class="panel"><h3>자산종류 비중</h3><div class="desc">막대 = 현재 보유 · 흰 선 = 목표 비중</div><div class="alloc" id="allocList"></div>
+      <div style="margin-top:20px"><div style="font-size:.78rem;color:var(--ink2);margin-bottom:6px">원화 : 달러 자산 비율</div><div class="curbar" id="curBar"></div></div>
+    </div>
+    <div class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div><h3>비중 시뮬레이션</h3><div class="desc" style="margin:0">투자금 넣으면 비중대로 분배된 상태가 기준 · 거기서 ±만원으로 옮겨보기 (미리보기, 실제 안 바뀜)</div></div>
+        <button class="btn ghost sm" onclick="simReset()">리셋</button>
       </div>
-      <div class="panel"><h3>투자금 배분</h3><div class="desc">금액 넣으면 두 방식으로 계산</div>
-        <div class="invest-in"><label>이번 달 투자금</label><input id="investAmt" value="5,100,000" inputmode="numeric"><span class="won">원</span></div>
-        <div class="alloc-out"><div class="ob"><h4>기계분배 (비중대로)</h4><div id="mechOut"></div></div><div class="ob"><h4>목표보정 (비중 채우기)</h4><div id="boostOut"></div></div></div>
-      </div>
+      <div class="invest-in" style="margin-top:12px"><label>이번 달 투자금</label><input id="investAmt" value="0" inputmode="numeric"><span class="won">원</span></div>
+      <div id="simBody" style="margin-top:10px"></div>
+      <div id="simSum" style="margin-top:12px;padding-top:12px;border-top:2px solid var(--line2);font-size:.85rem;color:var(--ink2)"></div>
     </div>
   </section>
   <section class="page" id="hold">
@@ -442,16 +464,20 @@ function renderAllocAll(){
   const sumW=cats.reduce((s,c)=>s+c.weight,0),invest=parseNum($('#investAmt').value),cur=holdings.filter(h=>h.month===nowMonth),tv=cur.reduce((s,h)=>s+h.val,0);
   cats.forEach((c,i)=>{const p=sumW?c.weight*100/sumW:0;if($('#cp'+i))$('#cp'+i).textContent=p.toFixed(1)+'%';if($('#cm'+i))$('#cm'+i).textContent=won(invest*(sumW?c.weight/sumW:0));});
   const idealG={},curG={};gubuns.forEach(g=>{idealG[g]=0;curG[g]=0;});cats.forEach(c=>{if(idealG[c.gubun]!==undefined)idealG[c.gubun]+=c.weight;});cur.forEach(h=>{if(curG[h.gubun]!==undefined)curG[h.gubun]+=h.val;});
-  let s='';gubuns.forEach(g=>{const ideal=sumW?idealG[g]*100/sumW:0,cv=tv?curG[g]*100/tv:0,diff=cv-ideal;s+=`<div class="arow"><span class="dot" style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${typeColor[g]||'var(--muted)'}"></span><span class="nm">${g}</span><span class="bar"><i style="width:${Math.min(cv,100)}%;background:${typeColor[g]||'var(--muted)'}"></i><span class="tgt" style="left:${Math.min(ideal,100)}%"></span></span><span class="pct">${cv.toFixed(1)}%</span><span class="gap ${diff>=0?'up':'down'}">${diff>=0?'+':''}${diff.toFixed(1)}</span></div>`;});
+  let s='';gubuns.forEach(g=>{const ideal=sumW?idealG[g]*100/sumW:0,cv=tv?curG[g]*100/tv:0,diff=cv-ideal,col=typeColor[g]||'var(--muted)',fillW=Math.min(cv,100),tgtL=Math.min(Math.max(ideal,0),100),gapPos=Math.min(Math.max((cv+ideal)/2,7),93),idealAmt=tv*ideal/100,diff2=idealAmt-curG[g];s+=`<div class="arow2"><span class="lab"><span class="dot" style="background:${col}"></span>${g}</span><div class="bigbar"><div class="tlab" style="left:${tgtL}%">목표 ${ideal.toFixed(1)}%</div><div class="fill" style="width:${fillW}%;background:${col}"><span class="cp">${cv.toFixed(1)}%</span></div><div class="tline" style="left:${tgtL}%"></div><div class="gaplab ${diff>=0?'up':'down'}" style="left:${gapPos}%">${diff>=0?'+':''}${diff.toFixed(1)}%</div></div><span class="amt2"><b style="font-weight:600;color:var(--ink)">${won(curG[g])}</b> <span style="color:var(--muted)">${won(idealAmt)}</span> <span style="color:${diff2>=0?'var(--accent2)':'var(--red)'};font-size:.73rem">(${diff2>=0?'+':''}${won(diff2)})</span></span></div>`;});
   $('#allocList').innerHTML=s||'<div class="empty">구분을 추가하세요</div>';
   let krw=0,usd=0;cur.forEach(h=>{if(h.currency==='달러')usd+=h.val;else krw+=h.val;});const tot=krw+usd||1;
   $('#curBar').innerHTML=`<div style="width:${krw/tot*100}%;background:var(--gold)">${(krw/tot*100).toFixed(0)}% 원화</div><div style="width:${usd/tot*100}%;background:var(--blue)">${(usd/tot*100).toFixed(0)}% 달러</div>`;
-  let mech='';cats.forEach(c=>{mech+=`<div class="orow"><span>${c.name}</span><span class="v" style="color:var(--accent)">${won(invest*(sumW?c.weight/sumW:0))}</span></div>`;});$('#mechOut').innerHTML=mech||'—';
-  const future=tv+invest;let boost='';gubuns.forEach(g=>{const idealAmt=future*(sumW?idealG[g]/sumW:0),need=idealAmt-curG[g],b=Math.max(0,Math.min(need,invest));boost+=`<div class="orow"><span>${g}</span><span class="v" style="color:${b>0?'var(--gold)':'var(--muted)'}">${won(b)}</span></div>`;});$('#boostOut').innerHTML=boost||'—';
 }
-$('#investAmt').addEventListener('focus',e=>e.target.value=parseNum(e.target.value));
+let simDelta={};
+function curByGubun(){const cur=holdings.filter(h=>h.month===nowMonth);const g={};gubuns.forEach(x=>g[x]=0);cur.forEach(h=>{if(g[h.gubun]!==undefined)g[h.gubun]+=h.val;});return{g,tv:cur.reduce((s,h)=>s+h.val,0)};}
+function renderSim(){const{g:curG}=curByGubun();let s='';gubuns.forEach((gn,i)=>{s+=`<div class="arow2" style="grid-template-columns:52px 68px 1fr 158px"><span class="lab"><span class="dot" style="background:${typeColor[gn]||'var(--muted)'}"></span>${gn}</span><input class="siminp" type="number" value="${simDelta[gn]||''}" placeholder="±만" oninput="simSet(${i},this.value)" style="margin-top:13px;width:100%"><div class="bigbar" id="simbar${i}"></div><span class="amt2" id="simamt${i}"></span></div>`;});$('#simBody').innerHTML=s;updateSimOutputs();}
+function updateSimOutputs(){const{g:curG,tv}=curByGubun();const sumW=cats.reduce((s,c)=>s+c.weight,0),idealG={};gubuns.forEach(x=>idealG[x]=0);cats.forEach(c=>{if(idealG[c.gubun]!==undefined)idealG[c.gubun]+=c.weight;});const invest=parseNum($('#investAmt').value);let sumD=0;gubuns.forEach(gn=>sumD+=(simDelta[gn]||0));const afterTv=tv+invest+sumD*1e4;gubuns.forEach((gn,i)=>{const base=curG[gn]+invest*(sumW?idealG[gn]/sumW:0),after=base+(simDelta[gn]||0)*1e4,cp=tv?curG[gn]/tv*100:0,np=afterTv?after/afterTv*100:0,tgt=sumW?idealG[gn]/sumW*100:0,col=typeColor[gn]||'var(--muted)',lo=Math.min(cp,np),hi=Math.max(cp,np),chg=np-cp,tgtL=Math.min(Math.max(tgt,0),100),bar=$('#simbar'+i);if(bar)bar.innerHTML=`<div class="tlab" style="left:${tgtL}%">목표 ${tgt.toFixed(1)}%</div><div class="fill" style="width:${Math.min(lo,100)}%;background:${col}"><span class="cp">${np.toFixed(1)}%</span></div><div class="soft" style="left:${Math.min(lo,100)}%;width:${Math.max(Math.min(hi,100)-Math.min(lo,100),0)}%;background:${chg>=0?'var(--accent)':'var(--red)'}"></div><div class="tline" style="left:${tgtL}%"></div>${Math.abs(chg)>0.05?`<div class="gaplab ${chg>0?'up':'down'}" style="left:${Math.min(Math.max((lo+hi)/2,7),93)}%">${chg>0?'+':''}${chg.toFixed(1)}%</div>`:''}`;const idA=afterTv*tgt/100,df=idA-after,am=$('#simamt'+i);if(am)am.innerHTML=`<b style="font-weight:600;color:var(--ink)">${won(after)}</b> <span style="color:var(--muted)">${won(idA)}</span> <span style="color:${df>=0?'var(--accent2)':'var(--red)'};font-size:.72rem">(${df>=0?'+':''}${won(df)})</span>`;});const lbl=sumD===0?'투자금 비중분배 그대로':sumD>0?'순매수 우위':'순매도 우위';$('#simSum').innerHTML=`투자금 <b style="font-family:'Spline Sans Mono';color:var(--accent)">${won(invest)}</b> 분배 + 조정 <b style="font-family:'Spline Sans Mono';color:${sumD===0?'var(--accent)':'var(--gold)'}">${sumD>=0?'+':''}${sumD.toLocaleString()}만</b> · ${lbl}`;}
+window.simSet=(i,v)=>{simDelta[gubuns[i]]=parseFloat(v)||0;updateSimOutputs();};
+window.simReset=()=>{simDelta={};renderSim();};
+$('#investAmt').addEventListener('focus',e=>{const n=parseNum(e.target.value);e.target.value=n?n.toLocaleString():'';});
 $('#investAmt').addEventListener('blur',e=>{e.target.value=parseNum(e.target.value).toLocaleString();});
-$('#investAmt').addEventListener('input',renderAllocAll);
+$('#investAmt').addEventListener('input',e=>{const n=parseNum(e.target.value);e.target.value=n?n.toLocaleString():'';renderAllocAll();updateSimOutputs();});
 
 /* ---- holdings ---- */
 function opts(arr,sel){return arr.map(o=>`<option ${o===sel?'selected':''}>${o}</option>`).join('')}
@@ -522,7 +548,7 @@ $('#startA').addEventListener('change',e=>{config.start_asset=parseNum(e.target.
 ['rRate','rInfl','rEnd'].forEach(id=>$('#'+id).addEventListener('change',()=>{config.rate=parseNum($('#rRate').value);config.infl=parseNum($('#rInfl').value);config.end_year=+parseNum($('#rEnd').value)||2056;fillYearSelects();persist();renderRetire();}));
 
 /* ---- orchestrate ---- */
-function renderAll(){fillMonthSel();renderCards();renderBar();renderCmpChips();renderCmp();renderCats();renderAllocAll();renderHold();renderMaster();fillYearSelects();}
+function renderAll(){fillMonthSel();renderCards();renderBar();renderCmpChips();renderCmp();renderCats();renderAllocAll();renderSim();renderHold();renderMaster();fillYearSelects();}
 function afterChange(){renderAll();renderRetire();persist();}
 
 /* ---- theme ---- */
