@@ -257,7 +257,7 @@
   </section>
   <section class="page" id="hold">
     <div class="ph"><div><h1>보유내역</h1><p>평가금만 수정 · 입력 1원 단위, 표시 만원</p></div>
-      <div style="display:flex;gap:9px"><button class="btn ghost" onclick="addRow()"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>새 종목</button><button class="btn ghost" onclick="cloneMonth()"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>전월 복제</button></div></div>
+      <div style="display:flex;gap:9px"><button class="btn ghost" onclick="addRow()"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>새 종목</button><button class="btn ghost" onclick="cloneMonth()"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>전월 복제</button><button class="btn ghost" onclick="addNextMonth()"><svg viewBox="0 0 24 24"><path d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>다음 달</button></div></div>
     <div class="banner">💡 평가금 칸 <b>클릭=원 단위 입력</b>, 벗어나면 만원 표시 · 입력하면 <b>자동 저장</b>돼요(왼쪽 아래 상태 확인). 새 달엔 "전월 복제"로 지난달 종목 가져와 평가금만 수정.</div>
     <div class="panel" style="padding:16px 20px;margin-bottom:14px"><div class="selrow" style="row-gap:10px">
       <label style="font-size:.82rem;color:var(--ink2)">조회 월</label><select id="monthSel" onchange="renderHold()"></select>
@@ -317,7 +317,7 @@ const mLabel=m=>{const[y,mo]=m.split('-');return y.slice(2)+'.'+(+mo);};
 
 /* ---- state ---- */
 let accounts=[],gubuns=[],cats=[],holdings=[],savings={},config={start_asset:180000000,rate:7,infl:3,end_year:2056};
-let loaded=false,viewMonth=nowMonth;
+let loaded=false,viewMonth=nowMonth,extraMonth=null;
 let holdFilter={q:''},holdHide={who:new Set(),account:new Set(),gubun:new Set(),currency:new Set()},holdSort={key:'',dir:1};
 const WHO=['수진','예도'],CUR=['원화','달러'];
 const typeColor={'주식':'var(--accent)','채권':'var(--blue)','금':'var(--gold)','현금':'var(--purple)','기타':'var(--muted)'};
@@ -517,7 +517,9 @@ function renderHold(){
   const tb=rows.reduce((s,o)=>s+o.h.buy,0),tv=rows.reduce((s,o)=>s+o.h.val,0),tg=tv-tb;
   $('#holdFoot').innerHTML=rows.length?`<tr><td colspan="5">${anyF?'필터 합계':'합계'} · ${rows.length}종목</td><td class="r mono">${man(tb)}</td><td class="r mono">${man(tv)}</td><td class="r mono ${tg>=0?'up':'down'}">${tg>=0?'+':''}${won(tg)}</td><td class="r mono ${tg>=0?'up':'down'}">${pct(tb?tg/tb*100:0)}</td><td></td></tr>`:'';
 }
-function fillMonthSel(){const M=months().slice().reverse();if(!M.includes(nowMonth))M.unshift(nowMonth);$('#monthSel').innerHTML=M.map(m=>`<option value="${m}" ${m===viewMonth?'selected':''}>${mLabel(m)}</option>`).join('');}
+function fillMonthSel(){let M=months();if(!M.includes(nowMonth))M.push(nowMonth);if(extraMonth&&!M.includes(extraMonth))M.push(extraMonth);M=[...new Set(M)].sort().reverse();$('#monthSel').innerHTML=M.map(m=>`<option value="${m}" ${m===viewMonth?'selected':''}>${mLabel(m)}</option>`).join('');}
+function addMonthStr(m,n){let[y,mo]=m.split('-').map(Number);mo+=n;y+=Math.floor((mo-1)/12);mo=((mo-1)%12+12)%12+1;return y+'-'+String(mo).padStart(2,'0');}
+window.addNextMonth=()=>{let base=nowMonth;months().forEach(m=>{if(m>base)base=m;});if(extraMonth&&extraMonth>base)base=extraMonth;const nx=addMonthStr(base,1);extraMonth=nx;viewMonth=nx;fillMonthSel();renderHold();};
 window.addRow=()=>{holdings.push({month:viewMonth,name:'새 종목',who:'수진',account:acctLabels()[0]||'',gubun:gubuns[0]||'주식',currency:'원화',buy:0,val:0});afterChange();};
 window.cloneMonth=()=>{const M=months().filter(m=>m<viewMonth).sort();if(!M.length){alert('복제할 이전 달 데이터가 없어요.');return;}const prev=M[M.length-1];const src=holdings.filter(h=>h.month===prev);if(holdings.some(h=>h.month===viewMonth)&&!confirm('이 달에 이미 종목이 있어요. 그래도 이전 달('+mLabel(prev)+') 것을 추가로 복제할까요?'))return;src.forEach(h=>holdings.push({...h,month:viewMonth}));afterChange();};
 
