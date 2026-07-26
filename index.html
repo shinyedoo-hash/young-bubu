@@ -148,6 +148,8 @@
   .rtable td.calc{padding:8px 12px;text-align:right;font-family:'Spline Sans Mono'}
   .cellin{width:100%;background:var(--panel);border:1px solid var(--accent);border-radius:6px;color:var(--ink);font-family:'Spline Sans Mono';text-align:right;padding:5px 8px;outline:none}
   .empty{color:var(--muted);font-size:.85rem;padding:20px;text-align:center}
+  .logfb{width:100%;min-height:230px;background:var(--bg2);border:1px solid var(--line2);border-radius:10px;color:var(--ink);font-family:inherit;font-size:.9rem;padding:13px 15px;outline:none;resize:vertical;line-height:1.65}
+  .logfb:focus{border-color:var(--accent)}
   .mfilter{position:relative;display:inline-block}
   .mfbtn{background:var(--bg2);border:1px solid var(--line2);border-radius:8px;color:var(--ink2);font-family:inherit;font-size:.84rem;padding:7px 11px;cursor:pointer;display:inline-flex;align-items:center;gap:5px}
   .mfbtn:hover{border-color:var(--line2);color:var(--ink)}
@@ -201,6 +203,7 @@
     <button data-tab="alloc"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3v9l6 4"/></svg>자산배분</button>
     <button data-tab="hold"><svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg>보유내역</button>
     <button data-tab="master"><svg viewBox="0 0 24 24"><path d="M12 2l9 4.5v11L12 22l-9-4.5v-11z"/><path d="M12 22V12M3 6.5l9 5.5 9-5.5"/></svg>계좌·종목</button>
+    <button data-tab="log"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>월별 기록</button>
     <button data-tab="future"><svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8"/><path d="M21 7v6h-6"/></svg>노후 설계</button>
   </nav>
   <div class="foot">
@@ -281,6 +284,29 @@
       <table><thead><tr><th>소유자</th><th>금융사</th><th>계좌종류</th><th>계좌번호</th><th class="c">삭제</th></tr></thead><tbody id="acctBody"></tbody></table>
     </div>
   </section>
+  <section class="page" id="log">
+    <div class="ph"><div><h1>월별 기록</h1><p>달마다 소득·지출·투자·회고를 남겨요</p></div>
+      <div class="selrow"><label style="font-size:.82rem;color:var(--ink2)">조회 월</label><select id="logMonthSel" onchange="renderLog()"></select></div>
+    </div>
+    <div class="row2">
+      <div class="panel">
+        <h3>수입 · 지출 · 투자</h3><div class="desc">그 달 총액 입력 (원 단위)</div>
+        <div class="rcfg" style="flex-direction:column;gap:10px">
+          <div class="f"><label>소득 (부부 합산)</label><input id="logIncome" inputmode="numeric" placeholder="0"></div>
+          <div class="f"><label>지출 (자동 = 소득 − 투자)</label><input id="logExpense" readonly style="color:var(--muted);cursor:default"></div>
+          <div class="f"><label>투자액</label><input id="logInvested" inputmode="numeric" placeholder="0"></div>
+        </div>
+        <div class="bigres" style="margin-top:16px">
+          <div class="b"><div class="l">저축 (소득 − 지출)</div><div class="v green" id="logSaving">—</div></div>
+          <div class="b alt"><div class="l">저축률</div><div class="v bl" id="logRate">—</div></div>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>이 달 피드백</h3><div class="desc">회고·메모 (자동 저장)</div>
+        <textarea id="logFeedback" class="logfb" placeholder="이번 달은 어땠나요? 잘한 점, 아쉬운 점, 다음 달 계획 등"></textarea>
+      </div>
+    </div>
+  </section>
   <section class="page" id="future">
     <div class="ph"><div><h1>노후 설계</h1><p>저축액을 채우고 60세 자산을 봅니다</p></div></div>
     <div class="rcfg">
@@ -316,7 +342,7 @@ const nowMonth=new Date().toISOString().slice(0,7);
 const mLabel=m=>{const[y,mo]=m.split('-');return y.slice(2)+'.'+(+mo);};
 
 /* ---- state ---- */
-let accounts=[],gubuns=[],cats=[],holdings=[],savings={},config={start_asset:180000000,rate:7,infl:3,end_year:2056};
+let accounts=[],gubuns=[],cats=[],holdings=[],savings={},logs={},config={start_asset:180000000,rate:7,infl:3,end_year:2056};
 let loaded=false,viewMonth=nowMonth,extraMonth=null;
 let holdFilter={q:''},holdHide={who:new Set(),account:new Set(),gubun:new Set(),currency:new Set()},holdSort={key:'',dir:1};
 const WHO=['수진','예도'],CUR=['원화','달러'];
@@ -357,6 +383,7 @@ async function saveAll(){
     const sv=Object.entries(savings).map(([year,monthly])=>({year:+year,monthly}));
     if(sv.length)await sb.from('retire_savings').insert(sv);
     await sb.from('retire_config').upsert({id:1,start_asset:config.start_asset,rate:config.rate,infl:config.infl,end_year:config.end_year});
+    try{await sb.from('monthly_log').delete().neq('month','');const lg=Object.entries(logs).filter(([m,d])=>d.income||d.expense||d.invested||d.feedback).map(([m,d])=>({month:m,income:d.income||0,expense:d.expense||0,invested:d.invested||0,feedback:d.feedback||''}));if(lg.length)await sb.from('monthly_log').insert(lg);}catch(e){console.error('monthly_log 저장 실패(테이블 확인):',e);}
     setSave('saved');
   }catch(e){console.error(e);setSave('error');}
 }
@@ -370,6 +397,7 @@ async function loadAll(){
     sb.from('retire_savings').select('*').order('year'),
     sb.from('retire_config').select('*'),
   ]);
+  logs={};try{const lg=await sb.from('monthly_log').select('*');(lg.data||[]).forEach(r=>logs[r.month]={income:Number(r.income),expense:Number(r.expense),invested:Number(r.invested),feedback:r.feedback||''});}catch(e){console.error('monthly_log 로드 실패(테이블 확인):',e);}
   accounts=a.data||[];gubuns=(g.data||[]).map(x=>x.name);cats=(c.data||[]).map(x=>({name:x.name,gubun:x.gubun,weight:Number(x.weight)}));
   holdings=(h.data||[]).map(x=>({month:x.month,name:x.name,who:x.who,account:x.account,gubun:x.gubun,currency:x.currency,buy:Number(x.buy),val:Number(x.val)}));
   savings={};(rs.data||[]).forEach(r=>savings[r.year]=Number(r.monthly));
@@ -550,7 +578,11 @@ $('#startA').addEventListener('change',e=>{config.start_asset=parseNum(e.target.
 ['rRate','rInfl','rEnd'].forEach(id=>$('#'+id).addEventListener('change',()=>{config.rate=parseNum($('#rRate').value);config.infl=parseNum($('#rInfl').value);config.end_year=+parseNum($('#rEnd').value)||2056;fillYearSelects();persist();renderRetire();}));
 
 /* ---- orchestrate ---- */
-function renderAll(){fillMonthSel();renderCards();renderBar();renderCmpChips();renderCmp();renderCats();renderAllocAll();renderSim();renderHold();renderMaster();fillYearSelects();}
+function renderLog(){let M=months();if(!M.includes(nowMonth))M.push(nowMonth);if(extraMonth&&!M.includes(extraMonth))M.push(extraMonth);M=[...new Set(M)].sort().reverse();const sel=$('#logMonthSel');const prev=sel.value,cur=(prev&&M.includes(prev))?prev:(M[0]||nowMonth);sel.innerHTML=M.map(m=>`<option value="${m}" ${m===cur?'selected':''}>${mLabel(m)}</option>`).join('');const lm=sel.value,d=logs[lm]||{income:0,expense:0,invested:0,feedback:''};const exp=(d.income||0)-(d.invested||0);$('#logIncome').value=d.income?d.income.toLocaleString():'';$('#logInvested').value=d.invested?d.invested.toLocaleString():'';$('#logExpense').value=exp?exp.toLocaleString():'';$('#logFeedback').value=d.feedback||'';const sav=(d.income||0)-exp,rate=d.income?sav/d.income*100:0;$('#logSaving').textContent=won(sav);$('#logRate').textContent=d.income?rate.toFixed(1)+'%':'—';}
+function logSet(){const lm=$('#logMonthSel').value;if(!lm)return;if(!logs[lm])logs[lm]={income:0,expense:0,invested:0,feedback:''};logs[lm].income=parseNum($('#logIncome').value);logs[lm].invested=parseNum($('#logInvested').value);logs[lm].expense=logs[lm].income-logs[lm].invested;logs[lm].feedback=$('#logFeedback').value;$('#logExpense').value=logs[lm].expense?logs[lm].expense.toLocaleString():'';const sav=logs[lm].income-logs[lm].expense,rate=logs[lm].income?sav/logs[lm].income*100:0;$('#logSaving').textContent=won(sav);$('#logRate').textContent=logs[lm].income?rate.toFixed(1)+'%':'—';persist();}
+['logIncome','logInvested'].forEach(id=>{const el=$('#'+id);el.addEventListener('focus',e=>{const n=parseNum(e.target.value);e.target.value=n?n.toLocaleString():'';});el.addEventListener('input',e=>{const n=parseNum(e.target.value);e.target.value=n?n.toLocaleString():'';logSet();});el.addEventListener('blur',e=>{const n=parseNum(e.target.value);e.target.value=n?n.toLocaleString():'';});});
+$('#logFeedback').addEventListener('input',logSet);
+function renderAll(){fillMonthSel();renderCards();renderBar();renderCmpChips();renderCmp();renderCats();renderAllocAll();renderSim();renderHold();renderMaster();renderLog();fillYearSelects();}
 function afterChange(){renderAll();renderRetire();persist();}
 
 /* ---- theme ---- */
