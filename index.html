@@ -310,7 +310,7 @@
       <div id="trendEC" class="ec" style="height:390px"></div><svg id="barChart" viewBox="0 0 900 380" style="display:none"></svg>
     </div>
     <div class="row2">
-      <div class="panel"><h3>자산 구성</h3><div class="desc">네모 크기 = 평가금 · 색 = 자산종류 · 눌러서 확대</div><div id="compEC" class="ec" style="height:360px"></div></div>
+      <div class="panel"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap"><div><h3>자산 구성</h3><div class="desc" id="compDesc">크기 = 평가금 · 색 = 수익률 · 눌러서 확대</div></div><div class="seg" id="compMode"><button data-v="ret" class="on">수익률</button><button data-v="type">자산종류</button></div></div><div id="compEC" class="ec" style="height:380px"></div><div class="legendrow" id="compLegend" style="margin-top:8px"></div></div>
       <div class="panel"><h3>자산배분 현황</h3><div class="desc">바깥 = 지금 · 안쪽 = 목표 비중</div><div id="allocEC" class="ec" style="height:360px"></div></div>
     </div>
     <div class="panel">
@@ -588,6 +588,7 @@ function renderBar(){
   $('#barChart').innerHTML=s;
 }
 $$('#srcSeg button').forEach(b=>b.onclick=()=>{$$('#srcSeg button').forEach(x=>x.classList.remove('on'));b.classList.add('on');holdFilter.src=b.dataset.s;renderHold();});
+$$('#compMode button').forEach(b=>b.onclick=()=>{$$('#compMode button').forEach(x=>x.classList.remove('on'));b.classList.add('on');compMode=b.dataset.v;renderCompEC();});
 let __rz;addEventListener('resize',()=>{clearTimeout(__rz);__rz=setTimeout(()=>{if(loaded)renderBar();ecResize();},150);});
 $('#trendType').querySelectorAll('button').forEach(b=>b.onclick=()=>{$('#trendType').querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');trendMode=b.dataset.v;renderBar();});
 
@@ -628,17 +629,27 @@ function renderTrendEC(){
   }
   ch.setOption(opt,true);return true;
 }
+let compMode='ret';
+// 트레이딩뷰 히트맵 계열 발산 색: 손실 빨강 ← 회색 → 수익 초록 (장기 수익률이라 구간을 넓게)
+const RET_STEPS=[[-20,'#f63538'],[-10,'#bf4045'],[-3,'#8b444e'],[3,'#414554'],[10,'#35764e'],[20,'#2f9e4f'],[Infinity,'#30cc5a']];
+const retColor=r=>r===null?'#5d6170':RET_STEPS.find(([t])=>r<t)[1];
 function renderCompEC(){
-  const ch=ecInit('compEC');if(!ch)return;const cur=holdings.filter(h=>h.month===nowMonth&&!isAdj(h)&&h.val>0),groups={};
+  const ch=ecInit('compEC');if(!ch)return;const cur=holdings.filter(h=>h.month===nowMonth&&!isAdj(h)&&h.val>0),groups={},tv=cur.reduce((s,h)=>s+h.val,0)||1;
   cur.forEach(h=>(groups[h.gubun]=groups[h.gubun]||[]).push(h));
-  const data=Object.entries(groups).map(([g,hs])=>{const c=colOf(g),t=inkOn(c);return{name:g,itemStyle:{color:c,borderColor:c},upperLabel:{color:t},children:hs.map(h=>({name:h.name,value:h.val,r:h.buy?(h.val-h.buy)/h.buy*100:null,acct:h.account,who:h.who,label:{color:t,rich:{n:{color:t},v:{color:t},r:{color:t}}}}))};});
+  const byRet=compMode==='ret',HEAD=cv('--ink');
+  const data=Object.entries(groups).map(([g,hs])=>{const gc=colOf(g);return{name:g,itemStyle:{color:byRet?HEAD:gc,borderColor:byRet?HEAD:gc},upperLabel:{color:byRet?'#fff':inkOn(gc)},
+    children:hs.map(h=>{const r=h.buy?(h.val-h.buy)/h.buy*100:null,c=byRet?retColor(r):gc,t=byRet?'#fff':inkOn(gc),fs=Math.round(Math.max(10,Math.min(22,Math.sqrt(h.val/tv)*44)));
+      return{name:h.name,value:h.val,r,acct:h.account,who:h.who,itemStyle:{color:c},label:{color:t,rich:{n:{color:t,fontSize:fs,lineHeight:fs+4},v:{color:t,fontSize:Math.max(9,fs-4)},r:{color:t,fontSize:Math.max(9,fs-3)}}}};})};});
+  $('#compDesc').textContent=byRet?'크기 = 평가금 · 색 = 수익률 · 눌러서 확대':'크기 = 평가금 · 색 = 자산종류 · 눌러서 확대';
+  $('#compLegend').innerHTML=byRet?['−20%↓','−10%','−3%','±3%','+3%','+10%','+20%↑'].map((l,i)=>`<span><i style="background:${RET_STEPS[i][1]}"></i>${l}</span>`).join(''):Object.keys(groups).map(g=>`<span><i style="background:${colOf(g)}"></i>${g}</span>`).join('');
   ch.setOption({...ecBase(),tooltip:{...ecTip(),formatter:p=>{const x=p.data;if(!x||x.acct===undefined)return `<b>${p.name}</b><br>${wonFull(p.value)}`;return `<b>${x.name}</b><br><span style="color:${cv('--muted')}">${x.who} · ${x.acct}</span><br>${wonFull(x.value)}${x.r===null?'':` <b style="color:${x.r>=0?cv('--accent'):cv('--red')}">${pct(x.r)}</b>`}`;}},
-    series:[{type:'treemap',data,roam:false,nodeClick:'zoomToNode',top:0,left:0,right:0,bottom:28,
-      breadcrumb:{show:true,bottom:0,left:0,itemStyle:{color:cv('--bg2'),borderColor:cv('--line'),textStyle:{color:cv('--ink2'),fontFamily:cv('--num')}}},
-      upperLabel:{show:true,height:22,fontWeight:800,fontSize:12,fontFamily:cv('--num')},
-      levels:[{itemStyle:{borderWidth:3,gapWidth:3,borderRadius:8}},{itemStyle:{borderColor:cv('--panel'),borderWidth:2,gapWidth:2,borderRadius:6}}],
-      label:{show:true,overflow:'truncate',fontFamily:cv('--num'),formatter:p=>{const x=p.data;return x&&x.acct!==undefined?`{n|${x.name}}\n{v|${won(x.value)}}${x.r===null?'':` {r|${pct(x.r)}}`}`:p.name;},
-        rich:{n:{color:'#fff',fontWeight:800,fontSize:12,lineHeight:18},v:{color:'rgba(255,255,255,.92)',fontSize:11,fontWeight:600},r:{color:'rgba(255,255,255,.85)',fontSize:10.5,fontWeight:700}}}}]},true);
+    series:[{type:'treemap',data,roam:false,nodeClick:'zoomToNode',top:0,left:0,right:0,bottom:24,squareRatio:1,
+      breadcrumb:{show:true,bottom:0,left:0,height:18,itemStyle:{color:cv('--bg2'),borderColor:cv('--line'),textStyle:{color:cv('--ink2'),fontFamily:cv('--num'),fontSize:11}}},
+      upperLabel:{show:true,height:16,fontSize:10.5,fontWeight:700,fontFamily:cv('--num'),padding:[0,0,0,2]},
+      levels:[{itemStyle:{borderWidth:2,gapWidth:2,borderRadius:0}},{itemStyle:{borderWidth:0,gapWidth:1,borderRadius:0,borderColor:cv('--panel')}}],
+      label:{show:true,position:'inside',align:'center',verticalAlign:'middle',overflow:'truncate',fontFamily:cv('--num'),
+        formatter:p=>{const x=p.data;return x&&x.acct!==undefined?`{n|${x.name}}\n{r|${x.r===null?'—':pct(x.r)}}\n{v|${won(x.value)}}`:p.name;},
+        rich:{n:{fontWeight:800,align:'center'},r:{fontWeight:700,align:'center'},v:{fontWeight:500,opacity:.85,align:'center'}}}}]},true);
 }
 function renderAllocEC(){
   const ch=ecInit('allocEC');if(!ch)return;const{g:curG,tv}=curByGubun(),sumW=cats.reduce((s,c)=>s+c.weight,0),idealG={};
