@@ -209,6 +209,24 @@
   .bigbar .tlab{position:absolute;top:-16px;font-size:.67rem;color:var(--ink2);font-family:var(--num);transform:translateX(-50%);white-space:nowrap;z-index:4}
   .bigbar .gaplab{position:absolute;top:50%;transform:translate(-50%,-50%);font-size:.7rem;font-weight:800;font-family:var(--num);z-index:5;white-space:nowrap}
   .arow2 .amt2{font-family:var(--num);font-feature-settings:"tnum";font-size:.79rem;color:var(--ink2);text-align:right}
+  /* 계좌·종목 */
+  .acctcols{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px;margin-bottom:16px}
+  .acctcol h3{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+  .acctcol h3 .t{font-family:var(--num);font-feature-settings:"tnum";font-size:.95rem;font-weight:800}
+  .acct{display:block;width:100%;text-align:left;background:none;border:none;border-top:1px solid var(--line);padding:13px 4px;cursor:pointer;color:inherit;font-family:inherit;border-radius:0;transition:background .15s}
+  .acct:hover{background:var(--bg2)}
+  .acct .top{display:flex;align-items:center;gap:8px}
+  .acct .nm{font-weight:700;font-size:.92rem}
+  .acct .v{margin-left:auto;font-family:var(--num);font-feature-settings:"tnum";font-weight:800;font-size:.95rem}
+  .acct .r{font-family:var(--num);font-feature-settings:"tnum";font-size:.76rem;font-weight:700;width:58px;text-align:right}
+  .acct .items{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px}
+  .acct .items span{font-size:.7rem;color:var(--ink2);background:var(--bg2);border-radius:6px;padding:2px 7px}
+  .src{font-size:.66rem;font-weight:700;border-radius:99px;padding:2px 7px;white-space:nowrap}
+  .src.a{color:#fff;background:var(--blue)}.src.c{color:#fff;background:var(--gold)}.src.m{color:var(--ink2);background:var(--bg2);border:1px solid var(--line2)}
+  .acctmgr summary{cursor:pointer;list-style:none}.acctmgr summary::-webkit-details-marker{display:none}
+  .acctmgr summary::before{content:'▸ ';color:var(--muted)}.acctmgr[open] summary::before{content:'▾ '}
+  .issue{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line);font-size:.84rem;flex-wrap:wrap}
+  .issue:first-of-type{border-top:none}
   /* ── 반응형 ── */
   @media(max-width:1080px){.cards{grid-template-columns:1fr 1fr}.card.hero,.cards .card:last-child{grid-column:1/-1}}
   @media(max-width:900px){.row2{grid-template-columns:1fr}}
@@ -326,11 +344,13 @@
     </div></div>
   </section>
   <section class="page" id="master">
-    <div class="ph"><div><h1>계좌·종목 관리</h1><p>여기 계좌가 보유내역 드롭다운이 됩니다</p></div></div>
-    <div class="panel">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><div><h3>계좌 목록</h3><div class="desc" style="margin:0">새 ISA 트거나 닫으면 여기서 추가·삭제</div></div><button class="btn ghost sm" onclick="addAcct()"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>계좌 추가</button></div>
-      <table><thead><tr><th>소유자</th><th>금융사</th><th>계좌종류</th><th>계좌번호</th><th class="c">삭제</th></tr></thead><tbody id="acctBody"></tbody></table>
-    </div>
+    <div class="ph"><div><h1>계좌·종목</h1><p>보유내역에서 자동으로 모아 보여줘요 · 계좌를 누르면 그 계좌 보유내역으로 이동</p></div><div class="when">기준 <b id="acctMonth"></b></div></div>
+    <div class="acctcols" id="acctBoard"></div>
+    <div class="panel" id="acctIssues" style="display:none"></div>
+    <details class="panel acctmgr"><summary><h3 style="display:inline">계좌 목록 관리</h3><span class="desc" style="margin:0 0 0 8px">보유내역 계좌 드롭다운의 원본 · 새 계좌를 만들거나 닫을 때만</span></summary>
+      <div style="display:flex;justify-content:flex-end;margin:12px 0"><button class="btn ghost sm" onclick="addAcct()"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>계좌 추가</button></div>
+      <div class="tablewrap"><table><thead><tr><th>소유자</th><th>금융사</th><th>계좌종류</th><th>계좌번호</th><th class="r">사용 중인 종목</th><th class="c">삭제</th></tr></thead><tbody id="acctBody"></tbody></table></div>
+    </details>
   </section>
   <section class="page" id="log">
     <div class="ph"><div><h1>월별 기록</h1><p>달마다 소득·지출·투자·회고를 남겨요</p></div>
@@ -413,7 +433,7 @@ async function doLogin(){
 async function doLogout(){await sb.auth.signOut();location.reload();}
 async function enterApp(){
   $('#loginScreen').style.display='none';$('#app').classList.add('on');
-  await loadAll();loaded=true;renderAll();renderRetire();
+  await loadAll();loaded=true;const filled=autofillAcctOwners();renderAll();renderRetire();if(filled)persist();
 }
 $('#pw').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 
@@ -628,10 +648,10 @@ function renderHold(){
   updateSortArrows();
   const anyF=q||holdFilter.src!=='all'||holdHide.who.size||holdHide.account.size||holdHide.gubun.size||holdHide.currency.size;
   $('#monthHint').textContent=anyF?`${rows.length}개 보임`:`${mLabel(vm)} · 언제든 수정 가능`;
-  const AL=acctLabels();let body='';
+  const AL=acctLabels();const ALfor=h=>{const l=accounts.filter(a=>!a.who||a.who===h.who).map(acctLabelOf);return l.includes(h.account)?l:[h.account,...l];};let body='';
   rows.forEach(({h,gi})=>{const g=h.val-h.buy,r=h.buy?g/h.buy*100:0;
     const au=h.source==='auto',ca=h.source==='calc';
-    body+=`<tr${au?' class="autorow" title="증권사에서 자동으로 채운 값이에요. 따로 입력하지 않아도 돼요."':ca?' class="calcrow" title="매입금(원금)만 입력하면 평가금은 이자(단리)를 계산해 매일 자동으로 채워져요."':''}><td style="position:relative"><input value="${h.name}" onchange="holdings[${gi}].name=this.value;afterChange()">${au?'<span class="autobadge">자동</span>':ca?'<span class="autobadge calc">이자 자동</span>':''}</td><td><select onchange="holdings[${gi}].who=this.value;afterChange()">${opts(WHO,h.who)}</select></td><td><select onchange="holdings[${gi}].account=this.value;afterChange()">${opts(AL,h.account)}</select></td><td><select onchange="holdings[${gi}].gubun=this.value;afterChange()">${opts(gubuns,h.gubun)}</select></td><td><select onchange="holdings[${gi}].currency=this.value;afterChange()">${opts(CUR,h.currency)}</select></td><td class="r"><input class="mono money" data-i="${gi}" data-f="buy" value="${man(h.buy)}"></td><td class="r"><input class="mono money" data-i="${gi}" data-f="val" value="${man(h.val)}"></td><td class="r mono ${g>=0?'up':'down'}">${g>=0?'+':''}${won(g)}</td><td class="r mono ${r>=0?'up':'down'}">${pct(r)}</td><td class="c"><span class="x" style="color:var(--muted);cursor:pointer" onclick="holdings.splice(${gi},1);afterChange()">✕</span></td></tr>`;});
+    body+=`<tr${au?' class="autorow" title="증권사에서 자동으로 채운 값이에요. 따로 입력하지 않아도 돼요."':ca?' class="calcrow" title="매입금(원금)만 입력하면 평가금은 이자(단리)를 계산해 매일 자동으로 채워져요."':''}><td style="position:relative"><input value="${h.name}" onchange="holdings[${gi}].name=this.value;afterChange()">${au?'<span class="autobadge">자동</span>':ca?'<span class="autobadge calc">이자 자동</span>':''}</td><td><select onchange="holdings[${gi}].who=this.value;afterChange()">${opts(WHO,h.who)}</select></td><td><select onchange="holdings[${gi}].account=this.value;afterChange()">${opts(ALfor(h),h.account)}</select></td><td><select onchange="holdings[${gi}].gubun=this.value;afterChange()">${opts(gubuns,h.gubun)}</select></td><td><select onchange="holdings[${gi}].currency=this.value;afterChange()">${opts(CUR,h.currency)}</select></td><td class="r"><input class="mono money" data-i="${gi}" data-f="buy" value="${man(h.buy)}"></td><td class="r"><input class="mono money" data-i="${gi}" data-f="val" value="${man(h.val)}"></td><td class="r mono ${g>=0?'up':'down'}">${g>=0?'+':''}${won(g)}</td><td class="r mono ${r>=0?'up':'down'}">${pct(r)}</td><td class="c"><span class="x" style="color:var(--muted);cursor:pointer" onclick="holdings.splice(${gi},1);afterChange()">✕</span></td></tr>`;});
   $('#holdBody').innerHTML=body||`<tr><td colspan="10"><div class="empty">${anyF?'조건에 맞는 종목이 없어요':'"새 종목" 또는 "전월 복제"로 시작하세요'}</div></td></tr>`;
   $$('#holdBody .money').forEach(el=>{el.addEventListener('focus',e=>{const v=holdings[+e.target.dataset.i][e.target.dataset.f];e.target.value=v?v.toLocaleString():'';});el.addEventListener('input',e=>{const n=parseNum(e.target.value);e.target.value=n?n.toLocaleString():'';});el.addEventListener('blur',e=>{const i=+e.target.dataset.i,f=e.target.dataset.f;const nv=parseNum(e.target.value);if(nv!==holdings[i][f]&&!(holdings[i].source==='calc'&&f==='buy'))holdings[i].source='manual';holdings[i][f]=nv;e.target.value=man(holdings[i][f]);afterChange();});});
   const ab=q?0:adj.reduce((s,h)=>s+h.buy,0);
@@ -646,7 +666,27 @@ window.addRow=()=>{holdings.push({month:viewMonth,name:'새 종목',who:'수진'
 window.cloneMonth=()=>{const M=months().filter(m=>m<viewMonth).sort();if(!M.length){alert('복제할 이전 달 데이터가 없어요.');return;}const prev=M[M.length-1];const src=holdings.filter(h=>h.month===prev);if(holdings.some(h=>h.month===viewMonth)&&!confirm('이 달에 이미 종목이 있어요. 그래도 이전 달('+mLabel(prev)+') 것을 추가로 복제할까요?'))return;src.forEach(h=>holdings.push({...h,month:viewMonth,source:'manual'}));afterChange();};
 
 /* ---- master ---- */
-function renderMaster(){let s='';accounts.forEach((a,i)=>{s+=`<tr><td><input value="${a.who||''}" onchange="accounts[${i}].who=this.value;afterChange()"></td><td><input value="${a.inst||''}" onchange="accounts[${i}].inst=this.value;afterChange()"></td><td><input value="${a.kind||''}" onchange="accounts[${i}].kind=this.value;afterChange()"></td><td><input value="${a.num||''}" onchange="accounts[${i}].num=this.value;afterChange()"></td><td class="c"><button class="btn ghost sm" onclick="accounts.splice(${i},1);afterChange()">✕</button></td></tr>`;});$('#acctBody').innerHTML=s||'<tr><td colspan="5"><div class="empty">계좌를 추가하세요</div></td></tr>';}
+const acctLabelOf=a=>((a.inst||'')+' '+(a.kind||'')).trim();
+function acctStats(month){const m={};holdings.filter(h=>h.month===month).forEach(h=>{const k=h.who+'\u0001'+h.account;const g=m[k]||(m[k]={who:h.who,account:h.account,rows:[],buy:0,val:0,src:{auto:0,calc:0,manual:0}});g.rows.push(h);g.buy+=h.buy;g.val+=h.val;if(!isAdj(h))g.src[h.source||'manual']=(g.src[h.source||'manual']||0)+1;});return Object.values(m);}
+// 소유자 빈 계좌는 보유내역에서 한 사람만 쓰면 자동으로 채움
+function autofillAcctOwners(){let ch=false;accounts.forEach(a=>{if(a.who)return;const ws=[...new Set(holdings.filter(h=>h.account===acctLabelOf(a)).map(h=>h.who).filter(w=>WHO.includes(w)))];if(ws.length===1){a.who=ws[0];ch=true;}});return ch;}
+function renderMaster(){
+  const vm=months().filter(m=>m<=nowMonth).pop()||nowMonth,stats=acctStats(vm);
+  $('#acctMonth').textContent=mLabel(vm);
+  const who=WHO;
+  $('#acctBoard').innerHTML=who.map(w=>{const list=stats.filter(s=>s.who===w).sort((a,b)=>b.val-a.val),tv=list.reduce((s,x)=>s+x.val,0);if(!list.length)return'';
+    return `<div class="panel acctcol"><h3>${w}<span class="t">${won(tv)}</span></h3><div class="desc">${list.length}개 계좌</div>${list.map(g=>{const gb=g.buy,g2=g.val-gb,r=gb?g2/gb*100:0,src=[g.src.auto?`<span class="src a">자동 ${g.src.auto}</span>`:'',g.src.calc?`<span class="src c">이자 자동</span>`:'',g.src.manual?`<span class="src m">직접 ${g.src.manual}</span>`:''].join('');
+      return `<button class="acct" onclick="gotoAcct('${w}','${g.account.replace(/'/g,"\\'")}')"><div class="top"><span class="nm">${g.account}</span>${src}<span class="v">${won(g.val)}</span><span class="r ${r>=0?'up':'down'}">${gb?pct(r):''}</span></div><div class="items">${g.rows.filter(h=>!isAdj(h)).map(h=>`<span>${h.name}</span>`).join('')}</div></button>`;}).join('')}</div>`;}).join('');
+  // 점검: 같은 사람이 비슷한 이름의 계좌를 두 개 쓰는지, 목록에만 있는 계좌
+  const norm=x=>(x||'').replace(/\s+/g,'').toLowerCase(),iss=[];
+  who.forEach(w=>{const names=[...new Set(holdings.filter(h=>h.who===w).map(h=>h.account))];const byN={};names.forEach(n=>(byN[norm(n)]=byN[norm(n)]||[]).push(n));Object.values(byN).filter(v=>v.length>1).forEach(v=>iss.push(`<div class="issue"><span class="src m">표기 섞임</span><b>${w}</b> · ${v.map(x=>`"${x}"`).join(' / ')} — 같은 계좌면 하나로 맞춰야 합계가 정확해요</div>`));});
+  holdings.filter(h=>!WHO.includes(h.who)).forEach(h=>iss.push(`<div class="issue"><span class="src m">소유자 확인</span>${mLabel(h.month)} · ${h.account} · ${h.name} — 소유자가 "${h.who}"로 적혀 있어요 (수진/예도가 아니면 계좌별 합계에서 빠져요)</div>`));
+  $('#acctIssues').style.display=iss.length?'':'none';$('#acctIssues').innerHTML=iss.length?`<h3>점검</h3><div class="desc">보유내역을 보고 자동으로 찾은 것</div>${iss.join('')}`:'';
+  const used=l=>holdings.filter(h=>h.month===vm&&h.account===l).length;
+  let s='';accounts.forEach((a,i)=>{const n=used(acctLabelOf(a));s+=`<tr${n?'':' style="opacity:.55"'}><td><select onchange="accounts[${i}].who=this.value;afterChange()"><option value=""></option>${opts(WHO,a.who)}</select></td><td><input value="${a.inst||''}" onchange="accounts[${i}].inst=this.value;afterChange()"></td><td><input value="${a.kind||''}" onchange="accounts[${i}].kind=this.value;afterChange()"></td><td><input value="${a.num||''}" onchange="accounts[${i}].num=this.value;afterChange()"></td><td class="r mono" style="color:var(--muted)">${n?n+'개':'안 씀'}</td><td class="c"><button class="btn ghost sm" onclick="accounts.splice(${i},1);afterChange()">✕</button></td></tr>`;});
+  $('#acctBody').innerHTML=s||'<tr><td colspan="6"><div class="empty">계좌를 추가하세요</div></td></tr>';
+}
+window.gotoAcct=(w,acct)=>{resetHoldFilter();const hs=holdings.filter(h=>h.month===viewMonth);[...new Set(hs.map(h=>h.who))].forEach(v=>{if(v!==w)holdHide.who.add(v);});[...new Set(hs.map(h=>h.account))].forEach(v=>{if(v!==acct)holdHide.account.add(v);});document.querySelector('.nav button[data-tab=hold]').click();renderHold();scrollTo(0,0);};
 window.addAcct=()=>{accounts.push({who:'수진',inst:'금융사',kind:'계좌',num:''});afterChange();};
 
 /* ---- retire ---- */
