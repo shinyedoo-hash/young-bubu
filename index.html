@@ -78,6 +78,11 @@
   /* 자동입력 행 */
   .autorow td{background:var(--blue-soft)}
   .autorow td:first-child{box-shadow:inset 3px 0 0 var(--blue)}
+  .calcrow td{background:color-mix(in srgb,var(--gold) 9%,transparent)}
+  .calcrow td:first-child{box-shadow:inset 3px 0 0 var(--gold)}
+  tbody tr.calcrow:hover td{background:color-mix(in srgb,var(--gold) 12%,transparent)}
+  #holdTable .calcrow td:first-child input{padding-right:64px}
+  .autobadge.calc{background:var(--gold)}
   .autobadge{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:10px;font-weight:700;color:#fff;background:var(--blue);border-radius:99px;padding:2px 7px;pointer-events:none;letter-spacing:0}
   /* panels */
   .panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px 24px;margin-bottom:16px;box-shadow:var(--shadow)}
@@ -303,10 +308,11 @@
   <section class="page" id="hold">
     <div class="ph"><div><h1>보유내역</h1><p>평가금만 수정 · 입력 1원 단위, 표시 만원</p></div>
       <div style="display:flex;gap:9px"><button class="btn ghost" onclick="addRow()"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>새 종목</button><button class="btn ghost" onclick="cloneMonth()"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>전월 복제</button><button class="btn ghost" onclick="addNextMonth()"><svg viewBox="0 0 24 24"><path d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>다음 달</button></div></div>
-    <div class="banner">💡 평가금 칸 <b>클릭=원 단위 입력</b>, 벗어나면 만원 표시 · 입력하면 <b>자동 저장</b>돼요(왼쪽 아래 상태 확인). <b style="color:var(--blue)">파란 줄(자동)</b>은 증권사에서 평일 16:10에 자동으로 채워져서 손대지 않아도 돼요. 새 달(25일)도 자동으로 만들어지니 "전월 복제"는 누르지 마세요.</div>
+    <div class="banner">💡 평가금 칸 <b>클릭=원 단위 입력</b>, 벗어나면 만원 표시 · 입력하면 <b>자동 저장</b>돼요(왼쪽 아래 상태 확인). <b style="color:var(--blue)">파란 줄(자동)</b>은 증권사에서 평일 16:10에 자동으로 채워져서 손대지 않아도 돼요. <b style="color:var(--gold)">노란 줄(이자 자동)</b>은 원금(매입금)만 입력하면 평가금이 자동 계산돼요. 새 달(25일)도 자동으로 만들어지니 "전월 복제"는 누르지 마세요.</div>
     <div class="panel" style="padding:16px 20px;margin-bottom:14px"><div class="selrow" style="row-gap:10px">
       <label style="font-size:.82rem;color:var(--ink2)">조회 월</label><select id="monthSel" onchange="renderHold()"></select>
       <span style="width:1px;height:20px;background:var(--line2);margin:0 4px"></span>
+      <div class="seg" id="srcSeg"><button data-s="all" class="on">전체</button><button data-s="manual">✍️ 직접 입력</button><button data-s="auto">자동</button></div>
       <input id="fltQ" placeholder="🔎 종목 검색" oninput="holdFilter.q=this.value;renderHold()" style="width:130px">
       <div class="mfilter"><button class="mfbtn" id="mfbtnwho" onclick="toggleMF(event,'who')">소유자<span class="ar">▾</span></button><div class="mfpanel" id="mfwho"></div></div>
       <div class="mfilter"><button class="mfbtn" id="mfbtnaccount" onclick="toggleMF(event,'account')">계좌<span class="ar">▾</span></button><div class="mfpanel" id="mfaccount"></div></div>
@@ -391,7 +397,7 @@ const mLabel=m=>{const[y,mo]=m.split('-');return y.slice(2)+'.'+(+mo);};
 /* ---- state ---- */
 let accounts=[],gubuns=[],cats=[],holdings=[],savings={},logs={},config={start_asset:180000000,rate:7,infl:3,end_year:2056};
 let loaded=false,viewMonth=nowMonth,extraMonth=null;
-let holdFilter={q:''},holdHide={who:new Set(),account:new Set(),gubun:new Set(),currency:new Set()},holdSort={key:'',dir:1};
+let holdFilter={q:'',src:'all'},holdHide={who:new Set(),account:new Set(),gubun:new Set(),currency:new Set()},holdSort={key:'',dir:1};
 const WHO=['수진','예도'],CUR=['원화','달러'];
 const typeColor={'주식':'var(--accent)','채권':'var(--blue)','금':'var(--gold)','현금':'var(--purple)','현금성':'var(--purple)','코인':'var(--teal)','기타':'var(--muted)'};
 const acctLabels=()=>accounts.map(a=>((a.inst||'')+' '+(a.kind||'')).trim());
@@ -489,7 +495,7 @@ function renderCards(){
   const prevM=months().filter(m=>m<nowMonth).pop(),prev=holdings.filter(h=>h.month===prevM);
   const dTv=tv-sum(prev,'val'),dTb=tb-sum(prev,'buy'),dMk=dTv-dTb;
   let usd=0;cur.forEach(h=>{if(h.currency==='달러')usd+=h.val;});const up=tv?usd/tv*100:0;
-  const auto=cur.filter(h=>h.source==='auto'),autoV=sum(auto,'val');
+  const auto=cur.filter(h=>h.source==='auto'||h.source==='calc'),autoV=sum(auto,'val');
   const sg=v=>(v>=0?'+':'')+won(v),cl=v=>v>=0?'up':'down';
   $('#curMonth').textContent=mLabel(nowMonth).split('.')[1]+'월';$('#curPeriod').textContent=mPeriod(nowMonth);
   $('#sumCards').innerHTML=`
@@ -531,6 +537,7 @@ function renderBar(){
     data.forEach((d,i)=>{const g=d.val-d.buy;s+=`<circle cx="${x(i)}" cy="${y(d.val)}" r="4" fill="var(--panel)" stroke="var(--accent)" stroke-width="2.4"/><text x="${x(i)}" y="${y(d.val)-24}" fill="var(--ink)" font-size="12" font-weight="800" text-anchor="middle">${(d.val/1e8).toFixed(2)}억</text><text x="${x(i)}" y="${y(d.val)-10}" fill="${g>=0?'var(--accent)':'var(--red)'}" font-size="10.5" font-weight="700" text-anchor="middle">${sg(g)}</text>`;});}
   $('#barChart').innerHTML=s;
 }
+$$('#srcSeg button').forEach(b=>b.onclick=()=>{$$('#srcSeg button').forEach(x=>x.classList.remove('on'));b.classList.add('on');holdFilter.src=b.dataset.s;renderHold();});
 let __rz;addEventListener('resize',()=>{clearTimeout(__rz);__rz=setTimeout(()=>{if(loaded)renderBar();},150);});
 $('#trendType').querySelectorAll('button').forEach(b=>b.onclick=()=>{$('#trendType').querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');trendMode=b.dataset.v;renderBar();});
 
@@ -607,25 +614,26 @@ window.toggleMF=(e,key)=>{e.stopPropagation();const p=$('#mf'+key),was=p.classLi
 document.addEventListener('click',e=>{if(e.target.closest('.mfilter'))return;document.querySelectorAll('.mfpanel.open').forEach(x=>x.classList.remove('open'));});
 function updateSortArrows(){['name','who','account','gubun','currency','buy','val','gain','rate'].forEach(k=>{const el=$('#hS'+k);if(!el)return;if(!el.dataset.base)el.dataset.base=el.textContent.replace(/[▲▼\s]+$/,'');el.textContent=el.dataset.base+(holdSort.key===k?(holdSort.dir>0?' ▲':' ▼'):'');el.style.color=holdSort.key===k?'var(--accent)':'';});}
 window.setSort=k=>{if(holdSort.key===k)holdSort.dir*=-1;else{holdSort.key=k;holdSort.dir=1;}renderHold();};
-window.resetHoldFilter=()=>{holdFilter={q:''};['who','account','gubun','currency'].forEach(k=>holdHide[k].clear());holdSort={key:'',dir:1};const q=$('#fltQ');if(q)q.value='';renderHold();};
+window.resetHoldFilter=()=>{holdFilter={q:'',src:'all'};$$('#srcSeg button').forEach(b=>b.classList.toggle('on',b.dataset.s==='all'));['who','account','gubun','currency'].forEach(k=>holdHide[k].clear());holdSort={key:'',dir:1};const q=$('#fltQ');if(q)q.value='';renderHold();};
 function renderHold(){
   const sel=$('#monthSel'),vm=sel.value||nowMonth;viewMonth=vm;
   renderMFs(vm);
   const q=holdFilter.q;
-  const inF=h=>!holdHide.who.has(h.who)&&!holdHide.account.has(h.account)&&!holdHide.gubun.has(h.gubun)&&!holdHide.currency.has(h.currency);
+  const srcOk=h=>holdFilter.src==='all'||(holdFilter.src==='manual'?h.source!=='auto':h.source==='auto'||h.source==='calc');
+  const inF=h=>srcOk(h)&&!holdHide.who.has(h.who)&&!holdHide.account.has(h.account)&&!holdHide.gubun.has(h.gubun)&&!holdHide.currency.has(h.currency);
   const adj=holdings.filter(h=>h.month===vm&&isAdj(h)&&inF(h));
   let rows=holdings.map((h,gi)=>({h,gi})).filter(o=>o.h.month===vm&&!isAdj(o.h))
     .filter(({h})=>(!q||(h.name||'').toLowerCase().includes(q.toLowerCase()))&&inF(h));
   if(holdSort.key){const k=holdSort.key,d=holdSort.dir;rows.sort((a,b)=>{const va=sortVal(a.h,k),vb=sortVal(b.h,k);return va<vb?-d:va>vb?d:0;});}
   updateSortArrows();
-  const anyF=q||holdHide.who.size||holdHide.account.size||holdHide.gubun.size||holdHide.currency.size;
+  const anyF=q||holdFilter.src!=='all'||holdHide.who.size||holdHide.account.size||holdHide.gubun.size||holdHide.currency.size;
   $('#monthHint').textContent=anyF?`${rows.length}개 보임`:`${mLabel(vm)} · 언제든 수정 가능`;
   const AL=acctLabels();let body='';
   rows.forEach(({h,gi})=>{const g=h.val-h.buy,r=h.buy?g/h.buy*100:0;
-    const au=h.source==='auto';
-    body+=`<tr${au?' class="autorow" title="증권사에서 자동으로 채운 값이에요. 따로 입력하지 않아도 돼요."':''}><td style="position:relative"><input value="${h.name}" onchange="holdings[${gi}].name=this.value;afterChange()">${au?'<span class="autobadge">자동</span>':''}</td><td><select onchange="holdings[${gi}].who=this.value;afterChange()">${opts(WHO,h.who)}</select></td><td><select onchange="holdings[${gi}].account=this.value;afterChange()">${opts(AL,h.account)}</select></td><td><select onchange="holdings[${gi}].gubun=this.value;afterChange()">${opts(gubuns,h.gubun)}</select></td><td><select onchange="holdings[${gi}].currency=this.value;afterChange()">${opts(CUR,h.currency)}</select></td><td class="r"><input class="mono money" data-i="${gi}" data-f="buy" value="${man(h.buy)}"></td><td class="r"><input class="mono money" data-i="${gi}" data-f="val" value="${man(h.val)}"></td><td class="r mono ${g>=0?'up':'down'}">${g>=0?'+':''}${won(g)}</td><td class="r mono ${r>=0?'up':'down'}">${pct(r)}</td><td class="c"><span class="x" style="color:var(--muted);cursor:pointer" onclick="holdings.splice(${gi},1);afterChange()">✕</span></td></tr>`;});
+    const au=h.source==='auto',ca=h.source==='calc';
+    body+=`<tr${au?' class="autorow" title="증권사에서 자동으로 채운 값이에요. 따로 입력하지 않아도 돼요."':ca?' class="calcrow" title="매입금(원금)만 입력하면 평가금은 이자(단리)를 계산해 매일 자동으로 채워져요."':''}><td style="position:relative"><input value="${h.name}" onchange="holdings[${gi}].name=this.value;afterChange()">${au?'<span class="autobadge">자동</span>':ca?'<span class="autobadge calc">이자 자동</span>':''}</td><td><select onchange="holdings[${gi}].who=this.value;afterChange()">${opts(WHO,h.who)}</select></td><td><select onchange="holdings[${gi}].account=this.value;afterChange()">${opts(AL,h.account)}</select></td><td><select onchange="holdings[${gi}].gubun=this.value;afterChange()">${opts(gubuns,h.gubun)}</select></td><td><select onchange="holdings[${gi}].currency=this.value;afterChange()">${opts(CUR,h.currency)}</select></td><td class="r"><input class="mono money" data-i="${gi}" data-f="buy" value="${man(h.buy)}"></td><td class="r"><input class="mono money" data-i="${gi}" data-f="val" value="${man(h.val)}"></td><td class="r mono ${g>=0?'up':'down'}">${g>=0?'+':''}${won(g)}</td><td class="r mono ${r>=0?'up':'down'}">${pct(r)}</td><td class="c"><span class="x" style="color:var(--muted);cursor:pointer" onclick="holdings.splice(${gi},1);afterChange()">✕</span></td></tr>`;});
   $('#holdBody').innerHTML=body||`<tr><td colspan="10"><div class="empty">${anyF?'조건에 맞는 종목이 없어요':'"새 종목" 또는 "전월 복제"로 시작하세요'}</div></td></tr>`;
-  $$('#holdBody .money').forEach(el=>{el.addEventListener('focus',e=>{const v=holdings[+e.target.dataset.i][e.target.dataset.f];e.target.value=v?v.toLocaleString():'';});el.addEventListener('input',e=>{const n=parseNum(e.target.value);e.target.value=n?n.toLocaleString():'';});el.addEventListener('blur',e=>{const i=+e.target.dataset.i,f=e.target.dataset.f;const nv=parseNum(e.target.value);if(nv!==holdings[i][f])holdings[i].source='manual';holdings[i][f]=nv;e.target.value=man(holdings[i][f]);afterChange();});});
+  $$('#holdBody .money').forEach(el=>{el.addEventListener('focus',e=>{const v=holdings[+e.target.dataset.i][e.target.dataset.f];e.target.value=v?v.toLocaleString():'';});el.addEventListener('input',e=>{const n=parseNum(e.target.value);e.target.value=n?n.toLocaleString():'';});el.addEventListener('blur',e=>{const i=+e.target.dataset.i,f=e.target.dataset.f;const nv=parseNum(e.target.value);if(nv!==holdings[i][f]&&!(holdings[i].source==='calc'&&f==='buy'))holdings[i].source='manual';holdings[i][f]=nv;e.target.value=man(holdings[i][f]);afterChange();});});
   const ab=q?0:adj.reduce((s,h)=>s+h.buy,0);
   const tb=rows.reduce((s,o)=>s+o.h.buy,0)+ab,tv=rows.reduce((s,o)=>s+o.h.val,0),tg=tv-tb;
   const adjRow=ab?`<tr><td colspan="5" style="color:var(--muted);font-size:12px">📌 특이사항 · 1Q→TIGER 종목변경 원가승계 보정 (매입금에서 전환 이익 제외 · 목록 숨김)</td><td class="r mono" style="color:var(--muted)">${man(ab)}</td><td colspan="4"></td></tr>`:'';
