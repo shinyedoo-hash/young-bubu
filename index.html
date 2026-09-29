@@ -81,10 +81,9 @@
   .calcrow td{background:color-mix(in srgb,var(--gold) 9%,transparent)}
   .calcrow td:first-child{box-shadow:inset 3px 0 0 var(--gold)}
   tbody tr.calcrow:hover td{background:color-mix(in srgb,var(--gold) 12%,transparent)}
-  #holdTable .calcrow td:first-child input{padding-right:66px}
+  #holdTable .calcrow td:first-child input{padding-right:64px}
   .autobadge.calc{background:var(--gold)}
-  .autobadge.old{background:var(--red)}
-  .autobadge{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:10px;font-weight:700;color:#fff;background:var(--blue);border-radius:99px;padding:2px 7px;letter-spacing:0;cursor:help}
+  .autobadge{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:10px;font-weight:700;color:#fff;background:var(--blue);border-radius:99px;padding:2px 7px;letter-spacing:0;pointer-events:none}
   /* panels */
   .panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px 24px;margin-bottom:16px;box-shadow:var(--shadow)}
   .panel h3{font-size:1rem;font-weight:700;margin-bottom:4px;letter-spacing:-.025em}
@@ -121,7 +120,7 @@
   #holdTable th:nth-child(1){width:24%}#holdTable th:nth-child(2){width:8%}#holdTable th:nth-child(3){width:13%}#holdTable th:nth-child(4){width:9.5%}#holdTable th:nth-child(5){width:8%}
   #holdTable th:nth-child(6),#holdTable th:nth-child(7){width:10%}#holdTable th:nth-child(8){width:10%}#holdTable th:nth-child(9){width:7.5%}#holdTable th:nth-child(10){width:32px}
   #holdTable td{padding-left:5px;padding-right:5px}#holdTable td select{padding-left:5px;padding-right:16px;background-position:right 4px center}
-  #holdTable td:first-child input{font-weight:600}#holdTable .autorow td:first-child input{padding-right:66px}
+  #holdTable td:first-child input{font-weight:600}#holdTable .autorow td:first-child input{padding-right:46px}
   #holdTable .x{display:inline-block;width:22px;height:22px;line-height:22px;border-radius:6px}#holdTable .x:hover{background:var(--red-soft);color:var(--red)!important}
   /* buttons */
   .btn{background:var(--ink);color:var(--bg);border:none;font-family:inherit;font-weight:700;font-size:.82rem;padding:9px 15px;border-radius:10px;cursor:pointer;transition:.15s;display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
@@ -274,6 +273,7 @@
     <button data-tab="future"><svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8"/><path d="M21 7v6h-6"/></svg>노후 설계</button>
   </nav>
   <div class="foot">
+    <div class="ss" id="syncInfo" style="color:var(--muted)"></div>
     <div class="ss"><span class="dotst" id="saveDot"></span><span id="saveTxt">불러오는 중…</span></div>
     <button class="logout" onclick="toggleTheme()" id="themeBtn">🌙 어두운 테마</button>
     <button class="logout" onclick="doLogout()">로그아웃</button>
@@ -328,7 +328,7 @@
   <section class="page" id="hold">
     <div class="ph"><div><h1>보유내역</h1><p>평가금만 수정 · 입력 1원 단위, 표시 만원</p></div>
       <div style="display:flex;gap:9px"><button class="btn ghost" onclick="addRow()"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>새 종목</button><button class="btn ghost" onclick="cloneMonth()"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>전월 복제</button><button class="btn ghost" onclick="addNextMonth()"><svg viewBox="0 0 24 24"><path d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>다음 달</button></div></div>
-    <div class="banner">💡 평가금 칸 <b>클릭=원 단위 입력</b>, 벗어나면 만원 표시 · 입력하면 <b>자동 저장</b>돼요(왼쪽 아래 상태 확인). <b style="color:var(--blue)">파란 줄(자동)</b>은 증권사에서 평일 16:10에 자동으로 채워져서 손대지 않아도 돼요. <b style="color:var(--gold)">노란 줄(이자 자동)</b>은 원금(매입금)만 입력하면 평가금이 자동 계산돼요. 새 달(25일)도 자동으로 만들어지니 "전월 복제"는 누르지 마세요.</div>
+    <div class="banner">💡 평가금 칸 <b>클릭=원 단위 입력</b>, 벗어나면 만원 표시 · 입력하면 <b>자동 저장</b>돼요(왼쪽 아래 상태 확인). <b style="color:var(--blue)">파란 줄(자동)</b>은 증권사에서 평일 16:10에 자동으로 채워져요. 새로 산 종목은 자동으로 추가되고, 다 판 종목은 자동으로 빠져요. <b style="color:var(--gold)">노란 줄(이자 자동)</b>은 원금(매입금)만 입력하면 평가금이 자동 계산돼요. 새 달(25일)도 자동으로 만들어지니 "전월 복제"는 누르지 마세요.</div>
     <div class="panel" style="padding:16px 20px;margin-bottom:14px"><div class="selrow" style="row-gap:10px">
       <label style="font-size:.82rem;color:var(--ink2)">조회 월</label><select id="monthSel" onchange="renderHold()"></select>
       <span style="width:1px;height:20px;background:var(--line2);margin:0 4px"></span>
@@ -410,7 +410,6 @@ const man=v=>Math.round(v/1e4).toLocaleString()+'만';
 const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s);
 const parseNum=s=>{const t=(''+s).trim(),n=parseFloat(t.replace(/[^0-9.]/g,''))||0;return t.startsWith('-')?-n:n;};
 const kst=s=>{const d=new Date(Date.parse(s)+9*3600e3);return{md:`${d.getUTCMonth()+1}/${d.getUTCDate()}`,hm:`${String(d.getUTCHours()).padStart(2,'0')}:${String(d.getUTCMinutes()).padStart(2,'0')}`};};
-const staleDays=s=>s?(Date.now()-Date.parse(s))/864e5:Infinity; // 자동값이 며칠 묵었는지
 const isAdj=h=>(h.name||'').startsWith('원가승계보정'); // 특이사항 보정행: 합계·그래프엔 반영, 목록엔 숨김
 // 돈터뷰의 "N월" = (N-1)월 25일 ~ N월 24일 (월급일 기준). KST 로 계산
 const PAYDAY=25;
@@ -460,7 +459,7 @@ async function saveAll(){
     if(cats.length)await sb.from('cats').insert(cats.map(c=>({name:c.name,gubun:c.gubun,weight:c.weight})));
     // 새 행을 먼저 넣고, 성공했을 때만 옛 행 삭제 (중간에 끊겨도 데이터가 사라지지 않게)
     if(holdings.length){
-      const ins=await sb.from('holdings').insert(holdings.map(h=>({month:h.month,name:h.name,who:h.who,account:h.account,gubun:h.gubun,currency:h.currency,buy:h.buy,val:h.val,source:h.source||'manual',synced_at:h.source==='manual'?null:(h.synced_at||null)}))).select('id,created_at');
+      const ins=await sb.from('holdings').insert(holdings.map(h=>({month:h.month,name:h.name,who:h.who,account:h.account,gubun:h.gubun,currency:h.currency,buy:h.buy,val:h.val,source:h.source||'manual',synced_at:h.source==='manual'?null:(h.synced_at||null),code:h.code||null}))).select('id,created_at');
       if(ins.error)throw ins.error;
       const minNew=Math.min(...ins.data.map(x=>x.id));
       const del=await sb.from('holdings').delete().lt('id',minNew);if(del.error)throw del.error;
@@ -486,7 +485,7 @@ async function loadAll(){
   ]);
   logs={};try{const lg=await sb.from('monthly_log').select('*');(lg.data||[]).forEach(r=>logs[r.month]={income:Number(r.income),expense:Number(r.expense),invested:Number(r.invested),feedback:r.feedback||''});}catch(e){console.error('monthly_log 로드 실패(테이블 확인):',e);}
   accounts=a.data||[];gubuns=(g.data||[]).map(x=>x.name);cats=(c.data||[]).map(x=>({name:x.name,gubun:x.gubun,weight:Number(x.weight)}));
-  holdings=(h.data||[]).map(x=>({month:x.month,name:x.name,who:x.who,account:x.account,gubun:x.gubun,currency:x.currency,buy:Number(x.buy),val:Number(x.val),source:x.source||'manual',synced_at:x.synced_at||null}));
+  holdings=(h.data||[]).map(x=>({month:x.month,name:x.name,who:x.who,account:x.account,gubun:x.gubun,currency:x.currency,buy:Number(x.buy),val:Number(x.val),source:x.source||'manual',synced_at:x.synced_at||null,code:x.code||null}));
   lastStamp=(h.data||[]).reduce((m,x)=>x.created_at>m?x.created_at:m,'')||null;
   savings={};(rs.data||[]).forEach(r=>savings[r.year]=Number(r.monthly));
   if(rc.data&&rc.data[0]){const x=rc.data[0];config={start_asset:Number(x.start_asset),rate:Number(x.rate),infl:Number(x.infl),end_year:x.end_year};}
@@ -530,7 +529,7 @@ function renderCards(){
   <div class="card"><div class="lab">달러 자산 비중</div><div class="big">${up.toFixed(0)}%</div>
     <div class="sub"><div style="height:6px;border-radius:99px;background:var(--bg2);overflow:hidden;margin:4px 0 7px"><div style="height:100%;width:${up}%;background:var(--blue)"></div></div>원화 ${(100-up).toFixed(0)}%</div></div>
   <div class="card"><div class="lab"><span style="width:7px;height:7px;border-radius:50%;background:${auto.length?'var(--blue)':'var(--muted)'}"></span>자동 입력</div><div class="big">${auto.length}<span style="font-size:.9rem;color:var(--muted);font-weight:600"> / ${cur.filter(h=>!isAdj(h)).length}행</span></div>
-    <div class="sub">${auto.length?(()=>{const last=auto.map(h=>h.synced_at).filter(Boolean).sort().pop(),t=last?kst(last):null,old=staleDays(last)>3;return `<b>${won(autoV)}</b><br>마지막 갱신 <b class="${old?'down':''}">${t?t.md+' '+t.hm:'—'}</b>${old?' · 멈춘 듯해요':''}`;})():'이번 달 자동 입력 전'}</div></div>`;
+    <div class="sub">${auto.length?`<b>${won(autoV)}</b> · 평일 16:10 갱신`:'이번 달 자동 입력 전'}</div></div>`;
 }
 function niceStep(m){const raw=m/6,p=Math.pow(10,Math.floor(Math.log10(raw||1)));return[1,2,2.5,5,10].map(c=>c*p).find(c=>c>=raw)||10*p;}
 function niceMax(e){const st=niceStep(e);return Math.max(st,Math.ceil(e*1.08/st)*st);}
@@ -655,7 +654,7 @@ function renderHold(){
   const AL=acctLabels();const ALfor=h=>{const l=accounts.filter(a=>!a.who||a.who===h.who).map(acctLabelOf);return l.includes(h.account)?l:[h.account,...l];};let body='';
   rows.forEach(({h,gi})=>{const g=h.val-h.buy,r=h.buy?g/h.buy*100:0;
     const au=h.source==='auto',ca=h.source==='calc';
-    body+=`<tr${au?' class="autorow" title="증권사에서 자동으로 채운 값이에요. 따로 입력하지 않아도 돼요."':ca?' class="calcrow" title="매입금(원금)만 입력하면 평가금은 이자(단리)를 계산해 매일 자동으로 채워져요."':''}><td style="position:relative"><input value="${h.name}" onchange="holdings[${gi}].name=this.value;afterChange()">${(au||ca)?(()=>{const t=h.synced_at?kst(h.synced_at):null,old=staleDays(h.synced_at)>3;return `<span class="autobadge ${ca?'calc':''} ${old?'old':''}" title="${t?`${t.md} ${t.hm} 기준 자동 갱신${old?' · 3일 넘게 갱신 안 됨':''}`:'갱신 기록 없음'}">${ca?'이자':'자동'} ${t?t.md:'?'}</span>`;})():''}</td><td><select onchange="holdings[${gi}].who=this.value;afterChange()">${opts(WHO,h.who)}</select></td><td><select onchange="holdings[${gi}].account=this.value;afterChange()">${opts(ALfor(h),h.account)}</select></td><td><select onchange="holdings[${gi}].gubun=this.value;afterChange()">${opts(gubuns,h.gubun)}</select></td><td><select onchange="holdings[${gi}].currency=this.value;afterChange()">${opts(CUR,h.currency)}</select></td><td class="r"><input class="mono money" data-i="${gi}" data-f="buy" value="${man(h.buy)}"></td><td class="r"><input class="mono money" data-i="${gi}" data-f="val" value="${man(h.val)}"></td><td class="r mono ${g>=0?'up':'down'}">${g>=0?'+':''}${won(g)}</td><td class="r mono ${r>=0?'up':'down'}">${pct(r)}</td><td class="c"><span class="x" style="color:var(--muted);cursor:pointer" onclick="holdings.splice(${gi},1);afterChange()">✕</span></td></tr>`;});
+    body+=`<tr${au?' class="autorow" title="증권사에서 자동으로 채운 값이에요. 따로 입력하지 않아도 돼요."':ca?' class="calcrow" title="매입금(원금)만 입력하면 평가금은 이자(단리)를 계산해 매일 자동으로 채워져요."':''}><td style="position:relative"><input value="${h.name}" onchange="holdings[${gi}].name=this.value;afterChange()">${au?'<span class="autobadge">자동</span>':ca?'<span class="autobadge calc">이자 자동</span>':''}</td><td><select onchange="holdings[${gi}].who=this.value;afterChange()">${opts(WHO,h.who)}</select></td><td><select onchange="holdings[${gi}].account=this.value;afterChange()">${opts(ALfor(h),h.account)}</select></td><td><select onchange="holdings[${gi}].gubun=this.value;afterChange()">${opts(gubuns,h.gubun)}</select></td><td><select onchange="holdings[${gi}].currency=this.value;afterChange()">${opts(CUR,h.currency)}</select></td><td class="r"><input class="mono money" data-i="${gi}" data-f="buy" value="${man(h.buy)}"></td><td class="r"><input class="mono money" data-i="${gi}" data-f="val" value="${man(h.val)}"></td><td class="r mono ${g>=0?'up':'down'}">${g>=0?'+':''}${won(g)}</td><td class="r mono ${r>=0?'up':'down'}">${pct(r)}</td><td class="c"><span class="x" style="color:var(--muted);cursor:pointer" onclick="holdings.splice(${gi},1);afterChange()">✕</span></td></tr>`;});
   $('#holdBody').innerHTML=body||`<tr><td colspan="10"><div class="empty">${anyF?'조건에 맞는 종목이 없어요':'"새 종목" 또는 "전월 복제"로 시작하세요'}</div></td></tr>`;
   $$('#holdBody .money').forEach(el=>{el.addEventListener('focus',e=>{const v=holdings[+e.target.dataset.i][e.target.dataset.f];e.target.value=v?v.toLocaleString():'';});el.addEventListener('input',e=>{const n=parseNum(e.target.value);e.target.value=n?n.toLocaleString():'';});el.addEventListener('blur',e=>{const i=+e.target.dataset.i,f=e.target.dataset.f;const nv=parseNum(e.target.value);if(nv!==holdings[i][f]&&!(holdings[i].source==='calc'&&f==='buy')){holdings[i].source='manual';holdings[i].synced_at=null;}holdings[i][f]=nv;e.target.value=man(holdings[i][f]);afterChange();});});
   const ab=q?0:adj.reduce((s,h)=>s+h.buy,0);
@@ -720,7 +719,8 @@ function renderLog(){let M=months();if(!M.includes(nowMonth))M.push(nowMonth);if
 function logSet(){const lm=$('#logMonthSel').value;if(!lm)return;if(!logs[lm])logs[lm]={income:0,expense:0,invested:0,feedback:''};logs[lm].income=parseNum($('#logIncome').value);logs[lm].invested=parseNum($('#logInvested').value);logs[lm].expense=logs[lm].income-logs[lm].invested;logs[lm].feedback=$('#logFeedback').value;$('#logExpense').value=logs[lm].expense?logs[lm].expense.toLocaleString():'';const sav=logs[lm].income-logs[lm].expense,rate=logs[lm].income?sav/logs[lm].income*100:0;$('#logSaving').textContent=won(sav);$('#logRate').textContent=logs[lm].income?rate.toFixed(1)+'%':'—';persist();}
 ['logIncome','logInvested'].forEach(id=>{const el=$('#'+id);el.addEventListener('focus',e=>{const n=parseNum(e.target.value);e.target.value=n?n.toLocaleString():'';});el.addEventListener('input',e=>{const n=parseNum(e.target.value);e.target.value=n?n.toLocaleString():'';logSet();});el.addEventListener('blur',e=>{const n=parseNum(e.target.value);e.target.value=n?n.toLocaleString():'';});});
 $('#logFeedback').addEventListener('input',logSet);
-function renderAll(){fillMonthSel();renderCards();renderBar();renderCmpChips();renderCmp();renderCats();renderAllocAll();renderSim();renderHold();renderMaster();renderLog();fillYearSelects();}
+function renderSyncInfo(){const last=holdings.map(h=>h.synced_at).filter(Boolean).sort().pop(),el=$('#syncInfo');if(!el)return;if(!last){el.textContent='';return;}const t=kst(last);el.innerHTML=`<span style="width:7px;height:7px;border-radius:50%;background:var(--blue)"></span><span>자동 갱신 ${t.md} ${t.hm}</span>`;}
+function renderAll(){renderSyncInfo();fillMonthSel();renderCards();renderBar();renderCmpChips();renderCmp();renderCats();renderAllocAll();renderSim();renderHold();renderMaster();renderLog();fillYearSelects();}
 function afterChange(){renderAll();renderRetire();persist();}
 
 /* ---- theme ---- */
