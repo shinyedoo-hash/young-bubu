@@ -81,9 +81,10 @@
   .calcrow td{background:color-mix(in srgb,var(--gold) 9%,transparent)}
   .calcrow td:first-child{box-shadow:inset 3px 0 0 var(--gold)}
   tbody tr.calcrow:hover td{background:color-mix(in srgb,var(--gold) 12%,transparent)}
-  #holdTable .calcrow td:first-child input{padding-right:64px}
+  #holdTable .calcrow td:first-child input{padding-right:66px}
   .autobadge.calc{background:var(--gold)}
-  .autobadge{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:10px;font-weight:700;color:#fff;background:var(--blue);border-radius:99px;padding:2px 7px;pointer-events:none;letter-spacing:0}
+  .autobadge.old{background:var(--red)}
+  .autobadge{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:10px;font-weight:700;color:#fff;background:var(--blue);border-radius:99px;padding:2px 7px;letter-spacing:0;cursor:help}
   /* panels */
   .panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px 24px;margin-bottom:16px;box-shadow:var(--shadow)}
   .panel h3{font-size:1rem;font-weight:700;margin-bottom:4px;letter-spacing:-.025em}
@@ -116,10 +117,11 @@
   td.mono{font-weight:600}
   tfoot td{border-top:1px solid var(--line2);font-weight:700;padding-top:12px;background:var(--panel2)}
   .tablewrap{overflow-x:auto;margin:0 -4px;padding:0 4px}
-  #holdTable{min-width:880px;table-layout:fixed}
-  #holdTable th:nth-child(1){width:19%}#holdTable th:nth-child(2){width:8%}#holdTable th:nth-child(3){width:14%}#holdTable th:nth-child(4){width:10%}#holdTable th:nth-child(5){width:8%}
-  #holdTable th:nth-child(6),#holdTable th:nth-child(7){width:10.5%}#holdTable th:nth-child(8){width:10%}#holdTable th:nth-child(9){width:8%}#holdTable th:nth-child(10){width:32px}
-  #holdTable td:first-child input{font-weight:600}#holdTable .autorow td:first-child input{padding-right:46px}
+  #holdTable{min-width:900px;table-layout:fixed}
+  #holdTable th:nth-child(1){width:24%}#holdTable th:nth-child(2){width:8%}#holdTable th:nth-child(3){width:13%}#holdTable th:nth-child(4){width:9.5%}#holdTable th:nth-child(5){width:8%}
+  #holdTable th:nth-child(6),#holdTable th:nth-child(7){width:10%}#holdTable th:nth-child(8){width:10%}#holdTable th:nth-child(9){width:7.5%}#holdTable th:nth-child(10){width:32px}
+  #holdTable td{padding-left:5px;padding-right:5px}#holdTable td select{padding-left:5px;padding-right:16px;background-position:right 4px center}
+  #holdTable td:first-child input{font-weight:600}#holdTable .autorow td:first-child input{padding-right:66px}
   #holdTable .x{display:inline-block;width:22px;height:22px;line-height:22px;border-radius:6px}#holdTable .x:hover{background:var(--red-soft);color:var(--red)!important}
   /* buttons */
   .btn{background:var(--ink);color:var(--bg);border:none;font-family:inherit;font-weight:700;font-size:.82rem;padding:9px 15px;border-radius:10px;cursor:pointer;transition:.15s;display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
@@ -407,6 +409,8 @@ const pct=v=>(v>=0?'+':'')+v.toFixed(1)+'%';
 const man=v=>Math.round(v/1e4).toLocaleString()+'만';
 const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s);
 const parseNum=s=>{const t=(''+s).trim(),n=parseFloat(t.replace(/[^0-9.]/g,''))||0;return t.startsWith('-')?-n:n;};
+const kst=s=>{const d=new Date(Date.parse(s)+9*3600e3);return{md:`${d.getUTCMonth()+1}/${d.getUTCDate()}`,hm:`${String(d.getUTCHours()).padStart(2,'0')}:${String(d.getUTCMinutes()).padStart(2,'0')}`};};
+const staleDays=s=>s?(Date.now()-Date.parse(s))/864e5:Infinity; // 자동값이 며칠 묵었는지
 const isAdj=h=>(h.name||'').startsWith('원가승계보정'); // 특이사항 보정행: 합계·그래프엔 반영, 목록엔 숨김
 // 돈터뷰의 "N월" = (N-1)월 25일 ~ N월 24일 (월급일 기준). KST 로 계산
 const PAYDAY=25;
@@ -456,7 +460,7 @@ async function saveAll(){
     if(cats.length)await sb.from('cats').insert(cats.map(c=>({name:c.name,gubun:c.gubun,weight:c.weight})));
     // 새 행을 먼저 넣고, 성공했을 때만 옛 행 삭제 (중간에 끊겨도 데이터가 사라지지 않게)
     if(holdings.length){
-      const ins=await sb.from('holdings').insert(holdings.map(h=>({month:h.month,name:h.name,who:h.who,account:h.account,gubun:h.gubun,currency:h.currency,buy:h.buy,val:h.val,source:h.source||'manual'}))).select('id,created_at');
+      const ins=await sb.from('holdings').insert(holdings.map(h=>({month:h.month,name:h.name,who:h.who,account:h.account,gubun:h.gubun,currency:h.currency,buy:h.buy,val:h.val,source:h.source||'manual',synced_at:h.source==='manual'?null:(h.synced_at||null)}))).select('id,created_at');
       if(ins.error)throw ins.error;
       const minNew=Math.min(...ins.data.map(x=>x.id));
       const del=await sb.from('holdings').delete().lt('id',minNew);if(del.error)throw del.error;
@@ -482,7 +486,7 @@ async function loadAll(){
   ]);
   logs={};try{const lg=await sb.from('monthly_log').select('*');(lg.data||[]).forEach(r=>logs[r.month]={income:Number(r.income),expense:Number(r.expense),invested:Number(r.invested),feedback:r.feedback||''});}catch(e){console.error('monthly_log 로드 실패(테이블 확인):',e);}
   accounts=a.data||[];gubuns=(g.data||[]).map(x=>x.name);cats=(c.data||[]).map(x=>({name:x.name,gubun:x.gubun,weight:Number(x.weight)}));
-  holdings=(h.data||[]).map(x=>({month:x.month,name:x.name,who:x.who,account:x.account,gubun:x.gubun,currency:x.currency,buy:Number(x.buy),val:Number(x.val),source:x.source||'manual'}));
+  holdings=(h.data||[]).map(x=>({month:x.month,name:x.name,who:x.who,account:x.account,gubun:x.gubun,currency:x.currency,buy:Number(x.buy),val:Number(x.val),source:x.source||'manual',synced_at:x.synced_at||null}));
   lastStamp=(h.data||[]).reduce((m,x)=>x.created_at>m?x.created_at:m,'')||null;
   savings={};(rs.data||[]).forEach(r=>savings[r.year]=Number(r.monthly));
   if(rc.data&&rc.data[0]){const x=rc.data[0];config={start_asset:Number(x.start_asset),rate:Number(x.rate),infl:Number(x.infl),end_year:x.end_year};}
@@ -526,7 +530,7 @@ function renderCards(){
   <div class="card"><div class="lab">달러 자산 비중</div><div class="big">${up.toFixed(0)}%</div>
     <div class="sub"><div style="height:6px;border-radius:99px;background:var(--bg2);overflow:hidden;margin:4px 0 7px"><div style="height:100%;width:${up}%;background:var(--blue)"></div></div>원화 ${(100-up).toFixed(0)}%</div></div>
   <div class="card"><div class="lab"><span style="width:7px;height:7px;border-radius:50%;background:${auto.length?'var(--blue)':'var(--muted)'}"></span>자동 입력</div><div class="big">${auto.length}<span style="font-size:.9rem;color:var(--muted);font-weight:600"> / ${cur.filter(h=>!isAdj(h)).length}행</span></div>
-    <div class="sub">${auto.length?`<b>${won(autoV)}</b> · 평일 16:10 갱신`:'이번 달 자동 입력 전'}</div></div>`;
+    <div class="sub">${auto.length?(()=>{const last=auto.map(h=>h.synced_at).filter(Boolean).sort().pop(),t=last?kst(last):null,old=staleDays(last)>3;return `<b>${won(autoV)}</b><br>마지막 갱신 <b class="${old?'down':''}">${t?t.md+' '+t.hm:'—'}</b>${old?' · 멈춘 듯해요':''}`;})():'이번 달 자동 입력 전'}</div></div>`;
 }
 function niceStep(m){const raw=m/6,p=Math.pow(10,Math.floor(Math.log10(raw||1)));return[1,2,2.5,5,10].map(c=>c*p).find(c=>c>=raw)||10*p;}
 function niceMax(e){const st=niceStep(e);return Math.max(st,Math.ceil(e*1.08/st)*st);}
@@ -651,9 +655,9 @@ function renderHold(){
   const AL=acctLabels();const ALfor=h=>{const l=accounts.filter(a=>!a.who||a.who===h.who).map(acctLabelOf);return l.includes(h.account)?l:[h.account,...l];};let body='';
   rows.forEach(({h,gi})=>{const g=h.val-h.buy,r=h.buy?g/h.buy*100:0;
     const au=h.source==='auto',ca=h.source==='calc';
-    body+=`<tr${au?' class="autorow" title="증권사에서 자동으로 채운 값이에요. 따로 입력하지 않아도 돼요."':ca?' class="calcrow" title="매입금(원금)만 입력하면 평가금은 이자(단리)를 계산해 매일 자동으로 채워져요."':''}><td style="position:relative"><input value="${h.name}" onchange="holdings[${gi}].name=this.value;afterChange()">${au?'<span class="autobadge">자동</span>':ca?'<span class="autobadge calc">이자 자동</span>':''}</td><td><select onchange="holdings[${gi}].who=this.value;afterChange()">${opts(WHO,h.who)}</select></td><td><select onchange="holdings[${gi}].account=this.value;afterChange()">${opts(ALfor(h),h.account)}</select></td><td><select onchange="holdings[${gi}].gubun=this.value;afterChange()">${opts(gubuns,h.gubun)}</select></td><td><select onchange="holdings[${gi}].currency=this.value;afterChange()">${opts(CUR,h.currency)}</select></td><td class="r"><input class="mono money" data-i="${gi}" data-f="buy" value="${man(h.buy)}"></td><td class="r"><input class="mono money" data-i="${gi}" data-f="val" value="${man(h.val)}"></td><td class="r mono ${g>=0?'up':'down'}">${g>=0?'+':''}${won(g)}</td><td class="r mono ${r>=0?'up':'down'}">${pct(r)}</td><td class="c"><span class="x" style="color:var(--muted);cursor:pointer" onclick="holdings.splice(${gi},1);afterChange()">✕</span></td></tr>`;});
+    body+=`<tr${au?' class="autorow" title="증권사에서 자동으로 채운 값이에요. 따로 입력하지 않아도 돼요."':ca?' class="calcrow" title="매입금(원금)만 입력하면 평가금은 이자(단리)를 계산해 매일 자동으로 채워져요."':''}><td style="position:relative"><input value="${h.name}" onchange="holdings[${gi}].name=this.value;afterChange()">${(au||ca)?(()=>{const t=h.synced_at?kst(h.synced_at):null,old=staleDays(h.synced_at)>3;return `<span class="autobadge ${ca?'calc':''} ${old?'old':''}" title="${t?`${t.md} ${t.hm} 기준 자동 갱신${old?' · 3일 넘게 갱신 안 됨':''}`:'갱신 기록 없음'}">${ca?'이자':'자동'} ${t?t.md:'?'}</span>`;})():''}</td><td><select onchange="holdings[${gi}].who=this.value;afterChange()">${opts(WHO,h.who)}</select></td><td><select onchange="holdings[${gi}].account=this.value;afterChange()">${opts(ALfor(h),h.account)}</select></td><td><select onchange="holdings[${gi}].gubun=this.value;afterChange()">${opts(gubuns,h.gubun)}</select></td><td><select onchange="holdings[${gi}].currency=this.value;afterChange()">${opts(CUR,h.currency)}</select></td><td class="r"><input class="mono money" data-i="${gi}" data-f="buy" value="${man(h.buy)}"></td><td class="r"><input class="mono money" data-i="${gi}" data-f="val" value="${man(h.val)}"></td><td class="r mono ${g>=0?'up':'down'}">${g>=0?'+':''}${won(g)}</td><td class="r mono ${r>=0?'up':'down'}">${pct(r)}</td><td class="c"><span class="x" style="color:var(--muted);cursor:pointer" onclick="holdings.splice(${gi},1);afterChange()">✕</span></td></tr>`;});
   $('#holdBody').innerHTML=body||`<tr><td colspan="10"><div class="empty">${anyF?'조건에 맞는 종목이 없어요':'"새 종목" 또는 "전월 복제"로 시작하세요'}</div></td></tr>`;
-  $$('#holdBody .money').forEach(el=>{el.addEventListener('focus',e=>{const v=holdings[+e.target.dataset.i][e.target.dataset.f];e.target.value=v?v.toLocaleString():'';});el.addEventListener('input',e=>{const n=parseNum(e.target.value);e.target.value=n?n.toLocaleString():'';});el.addEventListener('blur',e=>{const i=+e.target.dataset.i,f=e.target.dataset.f;const nv=parseNum(e.target.value);if(nv!==holdings[i][f]&&!(holdings[i].source==='calc'&&f==='buy'))holdings[i].source='manual';holdings[i][f]=nv;e.target.value=man(holdings[i][f]);afterChange();});});
+  $$('#holdBody .money').forEach(el=>{el.addEventListener('focus',e=>{const v=holdings[+e.target.dataset.i][e.target.dataset.f];e.target.value=v?v.toLocaleString():'';});el.addEventListener('input',e=>{const n=parseNum(e.target.value);e.target.value=n?n.toLocaleString():'';});el.addEventListener('blur',e=>{const i=+e.target.dataset.i,f=e.target.dataset.f;const nv=parseNum(e.target.value);if(nv!==holdings[i][f]&&!(holdings[i].source==='calc'&&f==='buy')){holdings[i].source='manual';holdings[i].synced_at=null;}holdings[i][f]=nv;e.target.value=man(holdings[i][f]);afterChange();});});
   const ab=q?0:adj.reduce((s,h)=>s+h.buy,0);
   const tb=rows.reduce((s,o)=>s+o.h.buy,0)+ab,tv=rows.reduce((s,o)=>s+o.h.val,0),tg=tv-tb;
   const adjRow=ab?`<tr><td colspan="5" style="color:var(--muted);font-size:12px">📌 특이사항 · 1Q→TIGER 종목변경 원가승계 보정 (매입금에서 전환 이익 제외 · 목록 숨김)</td><td class="r mono" style="color:var(--muted)">${man(ab)}</td><td colspan="4"></td></tr>`:'';
@@ -663,7 +667,7 @@ function fillMonthSel(){let M=months();if(!M.includes(nowMonth))M.push(nowMonth)
 function addMonthStr(m,n){let[y,mo]=m.split('-').map(Number);mo+=n;y+=Math.floor((mo-1)/12);mo=((mo-1)%12+12)%12+1;return y+'-'+String(mo).padStart(2,'0');}
 window.addNextMonth=()=>{let base=nowMonth;months().forEach(m=>{if(m>base)base=m;});if(extraMonth&&extraMonth>base)base=extraMonth;const nx=addMonthStr(base,1);extraMonth=nx;viewMonth=nx;fillMonthSel();renderHold();};
 window.addRow=()=>{holdings.push({month:viewMonth,name:'새 종목',who:'수진',account:acctLabels()[0]||'',gubun:gubuns[0]||'주식',currency:'원화',buy:0,val:0});afterChange();};
-window.cloneMonth=()=>{const M=months().filter(m=>m<viewMonth).sort();if(!M.length){alert('복제할 이전 달 데이터가 없어요.');return;}const prev=M[M.length-1];const src=holdings.filter(h=>h.month===prev);if(holdings.some(h=>h.month===viewMonth)&&!confirm('이 달에 이미 종목이 있어요. 그래도 이전 달('+mLabel(prev)+') 것을 추가로 복제할까요?'))return;src.forEach(h=>holdings.push({...h,month:viewMonth,source:'manual'}));afterChange();};
+window.cloneMonth=()=>{const M=months().filter(m=>m<viewMonth).sort();if(!M.length){alert('복제할 이전 달 데이터가 없어요.');return;}const prev=M[M.length-1];const src=holdings.filter(h=>h.month===prev);if(holdings.some(h=>h.month===viewMonth)&&!confirm('이 달에 이미 종목이 있어요. 그래도 이전 달('+mLabel(prev)+') 것을 추가로 복제할까요?'))return;src.forEach(h=>holdings.push({...h,month:viewMonth,source:'manual',synced_at:null}));afterChange();};
 
 /* ---- master ---- */
 const acctLabelOf=a=>((a.inst||'')+' '+(a.kind||'')).trim();
