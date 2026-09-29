@@ -337,7 +337,8 @@ const won=v=>{const a=Math.abs(v);let s=v<0?'-':'';if(a>=1e8)return s+(a/1e8).to
 const pct=v=>(v>=0?'+':'')+v.toFixed(1)+'%';
 const man=v=>Math.round(v/1e4).toLocaleString()+'만';
 const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s);
-const parseNum=s=>parseFloat((''+s).replace(/[^0-9.]/g,''))||0;
+const parseNum=s=>{const t=(''+s).trim(),n=parseFloat(t.replace(/[^0-9.]/g,''))||0;return t.startsWith('-')?-n:n;};
+const isAdj=h=>(h.name||'').startsWith('원가승계보정'); // 특이사항 보정행: 합계·그래프엔 반영, 목록엔 숨김
 const nowMonth=new Date().toISOString().slice(0,7);
 const mLabel=m=>{const[y,mo]=m.split('-');return y.slice(2)+'.'+(+mo);};
 
@@ -531,8 +532,10 @@ function renderHold(){
   const sel=$('#monthSel'),vm=sel.value||nowMonth;viewMonth=vm;
   renderMFs(vm);
   const q=holdFilter.q;
-  let rows=holdings.map((h,gi)=>({h,gi})).filter(o=>o.h.month===vm)
-    .filter(({h})=>(!q||(h.name||'').toLowerCase().includes(q.toLowerCase()))&&!holdHide.who.has(h.who)&&!holdHide.account.has(h.account)&&!holdHide.gubun.has(h.gubun)&&!holdHide.currency.has(h.currency));
+  const inF=h=>!holdHide.who.has(h.who)&&!holdHide.account.has(h.account)&&!holdHide.gubun.has(h.gubun)&&!holdHide.currency.has(h.currency);
+  const adj=holdings.filter(h=>h.month===vm&&isAdj(h)&&inF(h));
+  let rows=holdings.map((h,gi)=>({h,gi})).filter(o=>o.h.month===vm&&!isAdj(o.h))
+    .filter(({h})=>(!q||(h.name||'').toLowerCase().includes(q.toLowerCase()))&&inF(h));
   if(holdSort.key){const k=holdSort.key,d=holdSort.dir;rows.sort((a,b)=>{const va=sortVal(a.h,k),vb=sortVal(b.h,k);return va<vb?-d:va>vb?d:0;});}
   updateSortArrows();
   const anyF=q||holdHide.who.size||holdHide.account.size||holdHide.gubun.size||holdHide.currency.size;
@@ -542,8 +545,10 @@ function renderHold(){
     body+=`<tr><td><input value="${h.name}" onchange="holdings[${gi}].name=this.value;afterChange()"></td><td><select onchange="holdings[${gi}].who=this.value;afterChange()">${opts(WHO,h.who)}</select></td><td><select onchange="holdings[${gi}].account=this.value;afterChange()">${opts(AL,h.account)}</select></td><td><select onchange="holdings[${gi}].gubun=this.value;afterChange()">${opts(gubuns,h.gubun)}</select></td><td><select onchange="holdings[${gi}].currency=this.value;afterChange()">${opts(CUR,h.currency)}</select></td><td class="r"><input class="mono money" data-i="${gi}" data-f="buy" value="${man(h.buy)}"></td><td class="r"><input class="mono money" data-i="${gi}" data-f="val" value="${man(h.val)}"></td><td class="r mono ${g>=0?'up':'down'}">${g>=0?'+':''}${won(g)}</td><td class="r mono ${r>=0?'up':'down'}">${pct(r)}</td><td class="c"><span class="x" style="color:var(--muted);cursor:pointer" onclick="holdings.splice(${gi},1);afterChange()">✕</span></td></tr>`;});
   $('#holdBody').innerHTML=body||`<tr><td colspan="10"><div class="empty">${anyF?'조건에 맞는 종목이 없어요':'"새 종목" 또는 "전월 복제"로 시작하세요'}</div></td></tr>`;
   $$('#holdBody .money').forEach(el=>{el.addEventListener('focus',e=>{const v=holdings[+e.target.dataset.i][e.target.dataset.f];e.target.value=v?v.toLocaleString():'';});el.addEventListener('input',e=>{const n=parseNum(e.target.value);e.target.value=n?n.toLocaleString():'';});el.addEventListener('blur',e=>{const i=+e.target.dataset.i,f=e.target.dataset.f;holdings[i][f]=parseNum(e.target.value);e.target.value=man(holdings[i][f]);afterChange();});});
-  const tb=rows.reduce((s,o)=>s+o.h.buy,0),tv=rows.reduce((s,o)=>s+o.h.val,0),tg=tv-tb;
-  $('#holdFoot').innerHTML=rows.length?`<tr><td colspan="5">${anyF?'필터 합계':'합계'} · ${rows.length}종목</td><td class="r mono">${man(tb)}</td><td class="r mono">${man(tv)}</td><td class="r mono ${tg>=0?'up':'down'}">${tg>=0?'+':''}${won(tg)}</td><td class="r mono ${tg>=0?'up':'down'}">${pct(tb?tg/tb*100:0)}</td><td></td></tr>`:'';
+  const ab=q?0:adj.reduce((s,h)=>s+h.buy,0);
+  const tb=rows.reduce((s,o)=>s+o.h.buy,0)+ab,tv=rows.reduce((s,o)=>s+o.h.val,0),tg=tv-tb;
+  const adjRow=ab?`<tr><td colspan="5" style="color:var(--muted);font-size:12px">📌 특이사항 · 1Q→TIGER 종목변경 원가승계 보정 (매입금에서 전환 이익 제외 · 목록 숨김)</td><td class="r mono" style="color:var(--muted)">${man(ab)}</td><td colspan="4"></td></tr>`:'';
+  $('#holdFoot').innerHTML=rows.length?adjRow+`<tr><td colspan="5">${anyF?'필터 합계':'합계'} · ${rows.length}종목</td><td class="r mono">${man(tb)}</td><td class="r mono">${man(tv)}</td><td class="r mono ${tg>=0?'up':'down'}">${tg>=0?'+':''}${won(tg)}</td><td class="r mono ${tg>=0?'up':'down'}">${pct(tb?tg/tb*100:0)}</td><td></td></tr>`:'';
 }
 function fillMonthSel(){let M=months();if(!M.includes(nowMonth))M.push(nowMonth);if(extraMonth&&!M.includes(extraMonth))M.push(extraMonth);M=[...new Set(M)].sort().reverse();$('#monthSel').innerHTML=M.map(m=>`<option value="${m}" ${m===viewMonth?'selected':''}>${mLabel(m)}</option>`).join('');}
 function addMonthStr(m,n){let[y,mo]=m.split('-').map(Number);mo+=n;y+=Math.floor((mo-1)/12);mo=((mo-1)%12+12)%12+1;return y+'-'+String(mo).padStart(2,'0');}
