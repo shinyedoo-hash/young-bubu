@@ -247,6 +247,33 @@
   .seg .ic{width:13px;height:13px;vertical-align:-2px}
   .spark{display:block;width:64px;height:22px;margin:0 auto}
   .notyf__toast{border-radius:12px!important;font-family:inherit;box-shadow:var(--shadow)!important}
+  /* ── TOP5: 리밸런싱 경고·워터폴·목표·세제한도·금액숨김 ── */
+  .alertbar{display:flex;align-items:center;flex-wrap:wrap;gap:8px 10px;background:var(--red-soft);border:1px solid var(--red);border-radius:14px;padding:11px 16px;margin-bottom:16px;font-size:.84rem;color:var(--ink)}
+  .alertbar[hidden]{display:none}
+  .alertbar .t{font-weight:700;color:var(--red)}
+  .alertbar .chip2{font-family:var(--num);font-feature-settings:"tnum";font-weight:700;background:var(--panel);border:1px solid var(--line2);border-radius:99px;padding:2px 10px;font-size:.78rem}
+  .alertbar .btn{margin-left:auto}
+  .goalnum{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:6px}
+  .goalnum .big{font-family:var(--num);font-feature-settings:"tnum";font-size:1.5rem;font-weight:800;letter-spacing:-.03em}
+  .goalnum input{width:72px;text-align:right;font-family:var(--num);background:var(--bg2);color:var(--ink);border:1px solid var(--line2);border-radius:8px;padding:5px 8px;font-size:.85rem}
+  .gbar{height:10px;border-radius:99px;background:var(--bg2);overflow:hidden;margin:10px 0 8px}
+  .gbar>div{height:100%;background:var(--accent);border-radius:99px}
+  .gmeta{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+  .gmeta>div{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;min-width:0}
+  .gmeta .l{font-size:.72rem;color:var(--muted)}
+  .gmeta .v{font-family:var(--num);font-feature-settings:"tnum";font-weight:800;font-size:1.02rem;margin-top:3px}
+  .limrow{display:grid;grid-template-columns:96px 1fr;gap:4px 12px;align-items:center;padding:9px 0;border-top:1px solid var(--line)}
+  .limrow:first-of-type{border-top:none}
+  .limrow .who{font-size:.82rem;font-weight:600}.limrow .who small{display:block;color:var(--muted);font-weight:400;font-size:.72rem}
+  .limrow .lb{height:8px;border-radius:99px;background:var(--bg2);overflow:hidden}
+  .limrow .lb>div{height:100%;border-radius:99px}
+  .limrow .lt{grid-column:2;font-size:.76rem;color:var(--ink2);font-family:var(--num);font-feature-settings:"tnum"}
+  .rbtable{width:100%;border-collapse:collapse;font-size:.85rem;margin-top:12px}
+  .rbtable th{font-size:.72rem;color:var(--muted);font-weight:500;text-align:right;padding:6px 8px;border-bottom:1px solid var(--line)}
+  .rbtable th:first-child,.rbtable td:first-child{text-align:left}
+  .rbtable td{padding:9px 8px;border-bottom:1px solid var(--line);text-align:right;font-family:var(--num);font-feature-settings:"tnum"}
+  .rbtable td.put{font-weight:800;color:var(--accent)}
+  .rbtable tr.warn td:first-child::after{content:'벗어남';margin-left:6px;font-size:.66rem;font-weight:700;color:var(--red);border:1px solid var(--red);border-radius:5px;padding:0 5px}
   /* ── 반응형 ── */
   @media(max-width:1080px){.cards{grid-template-columns:1fr 1fr}.card.hero,.cards .card:last-child{grid-column:1/-1}}
   @media(max-width:900px){.row2{grid-template-columns:1fr}}
@@ -258,6 +285,8 @@
     .nav button{width:auto;white-space:nowrap;padding:8px 10px;font-size:.82rem;gap:6px}.nav button svg{display:none}
     .side .foot{margin:0;flex-direction:row;align-items:center;gap:6px}
     .side .foot .logout{display:none}.side .foot #themeBtn{padding:6px 9px;font-size:.72rem}
+    .side .foot #hideBtn{display:inline-block;padding:6px 9px;font-size:.72rem;white-space:nowrap}
+    .gmeta{grid-template-columns:1fr 1fr}.limrow{grid-template-columns:80px 1fr}
     .side .ss span:last-child{display:none}
     .main{padding:20px 16px 60px}
     .ph h1{font-size:1.35rem}
@@ -294,6 +323,7 @@
   <div class="foot">
     <div class="ss" id="syncInfo" style="color:var(--muted)"></div>
     <div class="ss"><span class="dotst" id="saveDot"></span><span id="saveTxt">불러오는 중…</span></div>
+    <button class="logout" onclick="toggleHide()" id="hideBtn">🙈 금액 숨기기</button>
     <button class="logout" onclick="toggleTheme()" id="themeBtn">🌙 어두운 테마</button>
     <button class="logout" onclick="doLogout()">로그아웃</button>
   </div>
@@ -302,12 +332,22 @@
   <section class="page on" id="dash">
     <div class="ph"><div><h1>대시보드</h1><p>부부 합산 자산 현황</p></div><div class="when">이번 달 <b id="curMonth"></b><span class="per" id="curPeriod"></span></div></div>
     <div class="cards" id="sumCards"></div>
+    <div class="alertbar" id="driftBar" hidden></div>
     <div class="panel">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
         <div><h3>월별 자산 추이</h3><div class="legendrow" style="margin-bottom:10px"><span><i style="background:var(--principal)"></i>원금</span><span><i style="background:var(--accent)"></i>번 돈</span><span><i style="background:var(--red)"></i>손실</span><span style="color:var(--muted)">· 막대 위 숫자 = 총자산 / 번 돈</span></div></div>
         <div class="seg" id="trendType"><button data-v="bar" class="on">막대</button><button data-v="line">선</button></div>
       </div>
       <div id="trendEC" class="ec" style="height:390px"></div><svg id="barChart" viewBox="0 0 900 380" style="display:none"></svg>
+    </div>
+    <div class="row2">
+      <div class="panel"><h3>이번 달 변화</h3><div class="desc" id="wfDesc">지난달 → 넣은 돈 → 시장 → 이번 달</div><div id="wfEC" class="ec" style="height:300px"></div><div style="font-size:.72rem;color:var(--muted);margin-top:6px">세로축은 0부터 시작하지 않아요(변화가 잘 보이게)</div></div>
+      <div class="panel">
+        <h3>순자산 목표</h3><div class="desc">목표는 이 기기에 저장돼요 · 도달 예상은 최근 6개월 평균 증가 기준</div>
+        <div id="goalBox"></div>
+        <h3 style="margin-top:22px">올해 세제혜택 한도</h3><div class="desc" id="limDesc">ISA 연 2,000만 · 연금저축+IRP 세액공제 연 900만 (1인당)</div>
+        <div id="limBox"></div>
+      </div>
     </div>
     <div class="row2">
       <div class="panel"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap"><div><h3>자산 구성</h3><div class="desc" id="compDesc">크기 = 평가금 · 색 = 수익률 · 눌러서 확대</div></div><div class="seg" id="compMode"><button data-v="ret" class="on">수익률</button><button data-v="type">자산종류</button></div></div><div id="compEC" class="ec" style="height:380px"></div><div class="legendrow" id="compLegend" style="margin-top:8px"></div></div>
@@ -337,6 +377,11 @@
     </div>
     <div class="panel"><h3>자산종류 비중</h3><div class="desc">막대 = 현재 보유 · 흰 선 = 목표 비중</div><div class="alloc" id="allocList"></div>
       <div style="margin-top:20px"><div style="font-size:.78rem;color:var(--ink2);margin-bottom:6px">원화 : 달러 자산 비율</div><div class="curbar" id="curBar"></div></div>
+    </div>
+    <div class="panel" id="rbPanel">
+      <h3>새 돈으로만 맞추기</h3><div class="desc">팔지 않고 이번 투자금만으로 목표 비중에 가깝게 · 목표에서 ±5%p 넘게 벗어나면 대시보드에 경고</div>
+      <div class="invest-in" style="margin-top:12px"><label>넣을 돈</label><input id="rbAmt" inputmode="numeric"><span class="won">원</span></div>
+      <div id="rbBody"></div>
     </div>
     <div class="panel">
       <div style="display:flex;justify-content:space-between;align-items:center">
@@ -426,10 +471,13 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 /* ================================ */
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const won=v=>{const a=Math.abs(v);let s=v<0?'-':'';if(a>=1e8)return s+(a/1e8).toFixed(2).replace(/\.?0+$/,'')+'억';if(a>=1e4)return s+Math.round(a/1e4).toLocaleString()+'만';return s+Math.round(a).toLocaleString();};
-const wonFull=v=>{const a=Math.abs(Math.round(v/1e4)),e=Math.floor(a/1e4),m=a%1e4;return (v<0?'-':'')+(e?e+'억 ':'')+(m||!e?m.toLocaleString()+'만':'');};
+// 금액 숨기기: 켜면 금액 표시 함수가 전부 가림 (수익률·비중은 그대로)
+let HIDE=false;try{HIDE=localStorage.getItem('hideAmt')==='1';}catch(e){}
+const MASK='•••';
+const won=v=>{if(HIDE)return MASK;const a=Math.abs(v);let s=v<0?'-':'';if(a>=1e8)return s+(a/1e8).toFixed(2).replace(/\.?0+$/,'')+'억';if(a>=1e4)return s+Math.round(a/1e4).toLocaleString()+'만';return s+Math.round(a).toLocaleString();};
+const wonFull=v=>{if(HIDE)return MASK+'만';const a=Math.abs(Math.round(v/1e4)),e=Math.floor(a/1e4),m=a%1e4;return (v<0?'-':'')+(e?e+'억 ':'')+(m||!e?m.toLocaleString()+'만':'');};
 const pct=v=>(v>=0?'+':'')+v.toFixed(1)+'%';
-const man=v=>Math.round(v/1e4).toLocaleString()+'만';
+const man=v=>HIDE?MASK+'만':Math.round(v/1e4).toLocaleString()+'만';
 const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s);
 const parseNum=s=>{const t=(''+s).trim(),n=parseFloat(t.replace(/[^0-9.]/g,''))||0;return t.startsWith('-')?-n:n;};
 const kst=s=>{const d=new Date(Date.parse(s)+9*3600e3);return{md:`${d.getUTCMonth()+1}/${d.getUTCDate()}`,hm:`${String(d.getUTCHours()).padStart(2,'0')}:${String(d.getUTCMinutes()).padStart(2,'0')}`};};
@@ -608,12 +656,12 @@ function renderTrendEC(){
     tooltip:{...ecTip(),trigger:'axis',axisPointer:{type:'shadow',shadowStyle:{color:cv('--accent-soft')}},formatter:ps=>{const i=ps[0].dataIndex,x=d[i],g=x.val-x.buy,r=x.buy?g/x.buy*100:0,p=d[i-1];
       return `<b>${mLabel(x.m)}</b> <span style="color:${MU}">${mPeriod(x.m)}</span><br>총자산 <b>${wonFull(x.val)}</b><br>원금 ${wonFull(x.buy)}<br>번 돈 <b style="color:${g>=0?A:R}">${sg(g)} (${pct(r)})</b>${p?`<br>지난달보다 <b>${sg(x.val-p.val)}</b> <span style="color:${MU}">(넣은 돈 ${sg(x.buy-p.buy)})</span>`:''}`;}},
     xAxis:{type:'category',data:labels,axisTick:{show:false},axisLine:{lineStyle:{color:LN}},axisLabel:{color:MU,fontSize:11.5,formatter:(v,i)=>i===nowI?`{now|${v}}`:v,rich:{now:{color:INK,fontWeight:800,fontSize:11.5}}}},
-    yAxis:{type:'value',splitLine:{lineStyle:{color:LN,type:'dashed'}},axisLabel:{color:MU,fontSize:11,formatter:v=>v?(v/1e8).toFixed(v%1e8?1:0)+'억':'0'}},
+    yAxis:{type:'value',splitLine:{lineStyle:{color:LN,type:'dashed'}},axisLabel:{color:MU,fontSize:11,formatter:v=>HIDE?'':v?(v/1e8).toFixed(v%1e8?1:0)+'억':'0'}},
     dataZoom:n>show?[{type:'inside',startValue:n-show,endValue:n-1,zoomLock:true},...(narrow?[]:[{type:'slider',height:12,bottom:4,startValue:n-show,endValue:n-1,borderColor:'transparent',backgroundColor:cv('--bg2'),fillerColor:cv('--accent-soft'),handleSize:0,showDetail:false,brushSelect:false,dataBackground:{lineStyle:{opacity:0},areaStyle:{opacity:0}}}])]:[],
     series:[]};
   if(trendMode==='bar'){
     const base=d.map(x=>Math.min(x.buy,x.val)),gain=d.map(x=>Math.max(x.val-x.buy,0)),loss=d.map(x=>Math.max(x.buy-x.val,0));
-    const top=d.map(x=>({value:0,label:{show:true,position:'top',distance:6,formatter:()=>`{t|${(x.val/1e8).toFixed(2)}억}\n{${x.val>=x.buy?'u':'d'}|${sg(x.val-x.buy)}}`}}));
+    const top=d.map(x=>({value:0,label:{show:true,position:'top',distance:6,formatter:()=>`{t|${HIDE?MASK:(x.val/1e8).toFixed(2)+'억'}}\n{${x.val>=x.buy?'u':'d'}|${sg(x.val-x.buy)}}`}}));
     opt.series=[
       {name:'원금',type:'bar',stack:'s',data:base,barMaxWidth:58,itemStyle:{color:P,borderRadius:[0,0,5,5]},
        label:{show:!narrow,position:'insideBottom',distance:8,color:PI,fontSize:10.5,fontWeight:600,formatter:p=>{const mx=Math.max(...d.map(x=>x.val));return d[p.dataIndex].buy/mx>.14?won(d[p.dataIndex].buy):'';}},
@@ -829,11 +877,84 @@ function logSet(){const lm=$('#logMonthSel').value;if(!lm)return;if(!logs[lm])lo
 ['logIncome','logInvested'].forEach(id=>{const el=$('#'+id);el.addEventListener('focus',e=>{const n=parseNum(e.target.value);e.target.value=n?n.toLocaleString():'';});el.addEventListener('input',e=>{const n=parseNum(e.target.value);e.target.value=n?n.toLocaleString():'';logSet();});el.addEventListener('blur',e=>{const n=parseNum(e.target.value);e.target.value=n?n.toLocaleString():'';});});
 $('#logFeedback').addEventListener('input',logSet);
 function renderSyncInfo(){const last=holdings.map(h=>h.synced_at).filter(Boolean).sort().pop(),el=$('#syncInfo');if(!el)return;if(!last){el.textContent='';return;}const t=kst(last);el.innerHTML=`<span style="width:7px;height:7px;border-radius:50%;background:var(--blue)"></span><span>자동 갱신 ${t.md} ${t.hm}</span>`;}
-function renderAll(){renderSyncInfo();fillMonthSel();renderCards();renderBar();renderCompEC();renderAllocEC();renderCmpChips();renderCmp();renderCats();renderAllocAll();renderSim();renderHold();renderMaster();renderLog();fillYearSelects();}
+/* ==== TOP5 ==== */
+const DRIFT=5; // 목표 비중에서 이만큼(%p) 넘게 벗어나면 경고
+const sumBy=(arr,k)=>arr.reduce((s,h)=>s+h[k],0);
+const lastMonth=()=>{const M=months().filter(m=>m<=nowMonth);return M[M.length-1]||null;};
+function targetW(){const sumW=cats.reduce((s,c)=>s+c.weight,0),w={};gubuns.forEach(g=>w[g]=0);cats.forEach(c=>{if(w[c.gubun]!==undefined)w[c.gubun]+=c.weight;});gubuns.forEach(g=>w[g]=sumW?w[g]/sumW:0);return w;}
+function driftList(){const{g:curG,tv}=curByGubun(),w=targetW();if(!tv)return[];return gubuns.map(g=>({g,cur:curG[g]/tv*100,tgt:w[g]*100})).map(x=>({...x,d:x.cur-x.tgt}));}
+// 새 돈만으로: 모자란 종류부터 채우고, 남으면 목표 비중대로
+function rebalPlan(invest){const{g:curG,tv}=curByGubun(),w=targetW(),after=tv+invest;const need={};let S=0;gubuns.forEach(g=>{need[g]=Math.max(0,after*w[g]-curG[g]);S+=need[g];});
+  return gubuns.map(g=>{const put=S>=invest?(S?need[g]*invest/S:0):need[g]+(invest-S)*w[g];return{g,cur:tv?curG[g]/tv*100:0,tgt:w[g]*100,put,aft:after?(curG[g]+put)/after*100:0};});}
+function avgDeposit(n){const d=buildMonthly().filter(x=>x.m<=nowMonth).slice(-(n+1));if(d.length<2)return 0;const v=[];for(let i=1;i<d.length;i++)v.push(d[i].buy-d[i-1].buy);return Math.max(0,v.reduce((a,b)=>a+b,0)/v.length);}
+
+function renderDrift(){const bar=$('#driftBar');if(!bar)return;const off=driftList().filter(x=>Math.abs(x.d)>DRIFT);
+  if(!off.length){bar.hidden=true;return;}bar.hidden=false;
+  bar.innerHTML=`<span class="t">비중 점검</span>${off.map(x=>`<span class="chip2">${x.g} ${x.d>0?'+':''}${x.d.toFixed(1)}%p ${x.d>0?'많음':'적음'}</span>`).join('')}<span style="color:var(--ink2)">목표에서 ±${DRIFT}%p 넘게 벗어났어요</span><button class="btn ghost sm" onclick="document.querySelector('.nav button[data-tab=alloc]').click();setTimeout(()=>$('#rbPanel').scrollIntoView({behavior:'smooth'}),60)">새 돈으로 맞추기 →</button>`;}
+
+function renderRebal(){const inp=$('#rbAmt');if(!inp)return;if(!inp.dataset.init){inp.dataset.init=1;const a=Math.round(avgDeposit(3)/1e5)*1e5;inp.value=(a||1000000).toLocaleString();}
+  const invest=parseNum(inp.value),P=rebalPlan(invest).filter(x=>x.tgt>0||x.cur>0);
+  $('#rbBody').innerHTML=`<table class="rbtable"><thead><tr><th>자산종류</th><th>지금</th><th>목표</th><th>넣을 돈</th><th>넣은 뒤</th></tr></thead><tbody>${P.map(x=>`<tr class="${Math.abs(x.cur-x.tgt)>DRIFT?'warn':''}"><td><span class="dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:${typeColor[x.g]||'var(--muted)'}"></span>${x.g}</td><td>${x.cur.toFixed(1)}%</td><td style="color:var(--muted)">${x.tgt.toFixed(1)}%</td><td class="put">${x.put>=5e3?won(x.put):'—'}</td><td>${x.aft.toFixed(1)}%</td></tr>`).join('')}</tbody></table>
+  <div style="font-size:.74rem;color:var(--muted);margin-top:8px">기본값 = 최근 3개월 평균 넣은 돈(매입금 증가). 목표에서 많이 벗어난 종류는 새 돈만으로 다 못 맞출 수 있어요.</div>`;}
+$('#rbAmt')?.addEventListener('focus',e=>{const n=parseNum(e.target.value);e.target.value=n?n.toLocaleString():'';});
+$('#rbAmt')?.addEventListener('input',e=>{const n=parseNum(e.target.value);e.target.value=n?n.toLocaleString():'';renderRebal();});
+
+function renderWaterfall(){const ch=ecInit('wfEC');if(!ch)return;const d=buildMonthly().filter(x=>x.m<=nowMonth),n=d.length;
+  if(n<2){ch.clear();$('#wfDesc').textContent='비교할 지난달 데이터가 쌓이면 보여요';return;}
+  const p=d[n-2],c=d[n-1],dep=c.buy-p.buy,mk=(c.val-p.val)-dep,mid=p.val+dep;
+  $('#wfDesc').textContent=`${mLabel(p.m)} → ${mLabel(c.m)} · 넣은 돈과 시장이 각각 얼마나 바꿨나`;
+  const A=cv('--accent'),R=cv('--red'),B=cv('--blue'),P=cv('--principal'),MU=cv('--muted'),LN=cv('--line'),INK=cv('--ink');
+  const cats_=['지난달','넣은 돈','시장','이번 달'];
+  const base=[0,dep>=0?p.val:mid,mk>=0?mid:mid+mk,0],h=[p.val,Math.abs(dep),Math.abs(mk),c.val];
+  const col=[P,dep>=0?B:R,mk>=0?A:R,P],sg=v=>(v>=0?'+':'')+won(v);
+  const lab=[won(p.val),sg(dep),sg(mk),won(c.val)];
+  const lo=Math.min(p.val,mid,c.val,mid+Math.min(mk,0),p.val+Math.min(dep,0)),hi=Math.max(p.val,mid,c.val,mid+Math.max(mk,0)),sp=Math.max(hi-lo,Math.abs(dep),Math.abs(mk),1e5);
+  const ymin=Math.max(0,lo-sp*1.2),ymax=hi+sp*.5;
+  ch.setOption({...ecBase(),grid:{left:6,right:6,top:28,bottom:4,containLabel:true},
+    tooltip:{...ecTip(),trigger:'axis',axisPointer:{type:'shadow',shadowStyle:{color:cv('--accent-soft')}},formatter:ps=>{const i=ps[0].dataIndex;return `<b>${cats_[i]}</b><br>${i===0||i===3?wonFull(h[i]):sg(i===1?dep:mk)}`;}},
+    xAxis:{type:'category',data:cats_,axisTick:{show:false},axisLine:{lineStyle:{color:LN}},axisLabel:{color:INK,fontSize:12,fontWeight:600}},
+    yAxis:{type:'value',min:ymin,max:ymax,splitLine:{lineStyle:{color:LN,type:'dashed'}},axisLabel:{color:MU,fontSize:10.5,showMinLabel:false,showMaxLabel:false,formatter:v=>HIDE?'':Math.round(v/1e4).toLocaleString()+'만'},splitNumber:4},
+    series:[{type:'bar',stack:'w',silent:true,data:base,itemStyle:{color:'transparent'},barMaxWidth:64},
+      {type:'bar',stack:'w',data:h.map((v,i)=>({value:v,itemStyle:{color:col[i],borderRadius:5}})),barMaxWidth:64,
+       label:{show:true,position:'top',distance:6,fontFamily:cv('--num'),fontWeight:800,fontSize:12.5,formatter:q=>`{${q.dataIndex===0||q.dataIndex===3?'t':(q.dataIndex===1?dep:mk)>=0?'u':'d'}|${lab[q.dataIndex]}}`,rich:{t:{color:INK,fontWeight:800},u:{color:A,fontWeight:800},d:{color:R,fontWeight:800}}}}]},true);}
+
+let GOAL=5e8;try{const g=+localStorage.getItem('goal');if(g>0)GOAL=g;}catch(e){}
+function renderGoal(){const box=$('#goalBox');if(!box)return;const d=buildMonthly().filter(x=>x.m<=nowMonth),n=d.length;const tv=n?d[n-1].val:0,r=GOAL?Math.min(tv/GOAL*100,100):0;
+  const k=Math.min(6,n-1),avg=k>0?(d[n-1].val-d[n-1-k].val)/k:0,left=GOAL-tv;
+  let eta='—',etaSub='증가 추세가 쌓이면 계산돼요';
+  if(left<=0){eta='달성!';etaSub='목표를 높여볼까요';}else if(avg>0){const mo=Math.ceil(left/avg),em=addMonthStr(d[n-1].m,mo),[y,m]=em.split('-');eta=`${y.slice(2)}년 ${+m}월`;etaSub=`약 ${mo>=12?Math.floor(mo/12)+'년 '+(mo%12?mo%12+'개월':''):mo+'개월'} 뒤`;}
+  const LM=Object.keys(logs).filter(m=>m<=nowMonth&&logs[m].income>0).sort(),last=LM[LM.length-1],l6=LM.slice(-6);
+  const rate=m=>logs[m].income?logs[m].invested/logs[m].income*100:0,avgR=l6.length?l6.reduce((s,m)=>s+rate(m),0)/l6.length:null;
+  box.innerHTML=`<div class="goalnum"><div><span class="big">${r.toFixed(1)}%</span> <span style="color:var(--muted);font-size:.82rem">달성</span></div>
+    <label style="font-size:.78rem;color:var(--ink2);display:flex;align-items:center;gap:6px">목표 <input id="goalIn" value="${(GOAL/1e8).toString()}" inputmode="decimal"> 억</label></div>
+    <div class="gbar"><div style="width:${r}%"></div></div>
+    <div style="font-size:.78rem;color:var(--ink2)">${wonFull(tv)} / ${wonFull(GOAL)}${left>0?` · 남은 <b>${won(left)}</b>`:''}</div>
+    <div class="gmeta">
+      <div><div class="l">도달 예상</div><div class="v">${eta}</div><div class="l">${etaSub}</div></div>
+      <div><div class="l">월평균 증가 (최근 ${Math.max(k,0)}개월)</div><div class="v ${avg>=0?'up':'down'}">${avg>=0?'+':''}${won(avg)}</div></div>
+      <div><div class="l">저축률 ${last?`(${mLabel(last)})`:''}</div><div class="v">${last?rate(last).toFixed(0)+'%':'—'}</div><div class="l">${avgR!=null?`6개월 평균 ${avgR.toFixed(0)}%`:'월별 기록에 소득을 넣으면 보여요'}</div></div>
+    </div>`;
+  $('#goalIn').addEventListener('change',e=>{const v=parseFloat(e.target.value);if(v>0){GOAL=v*1e8;try{localStorage.setItem('goal',GOAL);}catch(_){}}renderGoal();});}
+
+// 올해 납입액 ≈ 이번 달 매입금 − 작년 마지막 달 매입금 (기록이 그보다 늦게 시작했으면 첫 달부터)
+const LIMITS=[{k:'ISA',re:/ISA/i,cap:2e7,lab:'ISA'},{k:'PEN',re:/IRP|연금/i,cap:9e6,lab:'연금저축+IRP'}];
+function renderLimits(){const box=$('#limBox');if(!box)return;const cm=lastMonth();if(!cm){box.innerHTML='<div class="empty">데이터가 쌓이면 보여요</div>';return;}
+  const Y=nowMonth.slice(0,4),M=months(),prevY=M.filter(m=>m<Y+'-01').pop(),firstY=M.find(m=>m.startsWith(Y)),baseM=prevY||firstY,partial=!prevY;
+  const dl=Math.ceil((Date.UTC(+Y,11,31)-Date.now())/864e5);
+  let rows='';WHO.forEach(w=>LIMITS.forEach(L=>{const hs=m=>holdings.filter(h=>h.month===m&&h.who===w&&L.re.test(h.account||''));const now=hs(cm);if(!now.length&&!hs(baseM).length)return;
+    const paid=Math.max(0,sumBy(now,'buy')-sumBy(hs(baseM),'buy')),r=Math.min(paid/L.cap*100,100),rest=Math.max(L.cap-paid,0),col=r>=100?'var(--accent)':L.k==='PEN'?'var(--purple)':'var(--blue)';
+    rows+=`<div class="limrow"><div class="who">${w}<small>${L.lab}</small></div><div class="lb"><div style="width:${r}%;background:${col}"></div></div><div class="lt">${won(paid)} / ${won(L.cap)} · ${rest>0?`남은 <b style="color:var(--ink)">${won(rest)}</b>`:'<b style="color:var(--accent)">다 채움</b>'}</div></div>`;}));
+  box.innerHTML=(rows||'<div class="empty">ISA·IRP·연금 계좌가 보유내역에 없어요</div>')+`<div style="font-size:.72rem;color:var(--muted);margin-top:8px">${partial?`기록이 ${mLabel(baseM)}부터라 그 전 납입은 빠져 있어요 · `:''}매입금 증가로 추정 · 올해 남은 ${dl}일</div>`;}
+
+function renderTop5(){try{renderDrift();renderWaterfall();renderGoal();renderLimits();renderRebal();}catch(e){console.error('TOP5 렌더 오류',e);}}
+function setHideBtn(){const b=$('#hideBtn');if(b)b.textContent=HIDE?'🙉 금액 보이기':'🙈 금액 숨기기';}
+window.toggleHide=()=>{HIDE=!HIDE;try{localStorage.setItem('hideAmt',HIDE?'1':'0');}catch(e){}setHideBtn();if(loaded){renderAll();renderRetire();}};
+setHideBtn();
+function renderAll(){renderSyncInfo();fillMonthSel();renderCards();renderBar();renderCompEC();renderAllocEC();renderCmpChips();renderCmp();renderCats();renderAllocAll();renderSim();renderHold();renderMaster();renderLog();fillYearSelects();renderTop5();}
 function afterChange(){renderAll();renderRetire();persist();}
 
 /* ---- theme ---- */
-function setTheme(t){document.body.classList.toggle('light',t==='light');try{localStorage.setItem('theme',t);}catch(e){}const b=$('#themeBtn');if(b)b.textContent=t==='light'?'☀️ 밝은 테마':'🌙 어두운 테마';if(loaded){try{renderBar();renderCmp();renderCompEC();renderAllocEC();}catch(e){}}}
+function setTheme(t){document.body.classList.toggle('light',t==='light');try{localStorage.setItem('theme',t);}catch(e){}const b=$('#themeBtn');if(b)b.textContent=t==='light'?'☀️ 밝은 테마':'🌙 어두운 테마';if(loaded){try{renderBar();renderCmp();renderCompEC();renderAllocEC();renderWaterfall();}catch(e){}}}
 window.toggleTheme=()=>setTheme(document.body.classList.contains('light')?'dark':'light');
 try{setTheme(localStorage.getItem('theme')||'dark');}catch(e){setTheme('dark');}
 
