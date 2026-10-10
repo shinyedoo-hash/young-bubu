@@ -474,7 +474,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // 금액 숨기기: 켜면 금액 표시 함수가 전부 가림 (수익률·비중은 그대로)
 let HIDE=false;try{HIDE=localStorage.getItem('hideAmt')==='1';}catch(e){}
 const MASK='•••';
-const won=v=>{if(HIDE)return MASK;const a=Math.abs(v);let s=v<0?'-':'';if(a>=1e8)return s+(a/1e8).toFixed(2).replace(/\.?0+$/,'')+'억';if(a>=1e4)return s+Math.round(a/1e4).toLocaleString()+'만';return s+Math.round(a).toLocaleString();};
+const won=v=>{if(HIDE)return MASK;const a=Math.abs(v);let s=v<0?'-':'';if(a>=1e8)return s+(a/1e8).toFixed(2).replace(/\.?0+$/,'')+'억';if(a>=1e4)return s+Math.round(a/1e4).toLocaleString()+'만';return s+Math.round(a).toLocaleString()+'원';}; // 1만 미만은 '원' 붙여서 만 단위와 헷갈리지 않게
 const wonFull=v=>{if(HIDE)return MASK+'만';const a=Math.abs(Math.round(v/1e4)),e=Math.floor(a/1e4),m=a%1e4;return (v<0?'-':'')+(e?e+'억 ':'')+(m||!e?m.toLocaleString()+'만':'');};
 const pct=v=>(v>=0?'+':'')+v.toFixed(1)+'%';
 const man=v=>HIDE?MASK+'만':Math.round(v/1e4).toLocaleString()+'만';
