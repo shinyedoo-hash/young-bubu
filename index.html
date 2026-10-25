@@ -396,7 +396,7 @@
   <section class="page" id="hold">
     <div class="ph"><div><h1>보유내역</h1><p>평가금만 수정 · 입력 1원 단위, 표시 만원</p></div>
       <div style="display:flex;gap:9px"><button class="btn ghost" onclick="addRow()"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>새 종목</button><button class="btn ghost" onclick="cloneMonth()"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>전월 복제</button><button class="btn ghost" onclick="addNextMonth()"><svg viewBox="0 0 24 24"><path d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>다음 달</button></div></div>
-    <div class="banner"><i data-lucide="lightbulb" class="ic"></i> 평가금 칸 <b>클릭=원 단위 입력</b>, 벗어나면 만원 표시 · 입력하면 <b>자동 저장</b>돼요(왼쪽 아래 상태 확인). <b style="color:var(--blue)">파란 줄(자동)</b>은 증권사에서 평일 16:10에 자동으로 채워져요. 새로 산 종목은 자동으로 추가되고, 다 판 종목은 자동으로 빠져요. <b style="color:var(--gold)">노란 줄(이자 자동)</b>은 원금(매입금)만 입력하면 평가금이 자동 계산돼요. 새 달(25일)도 자동으로 만들어지니 "전월 복제"는 누르지 마세요.</div>
+    <div class="banner"><i data-lucide="lightbulb" class="ic"></i> 평가금 칸 <b>클릭=원 단위 입력</b>, 벗어나면 만원 표시 · 입력하면 <b>자동 저장</b>돼요(왼쪽 아래 상태 확인). <b style="color:var(--blue)">파란 줄(자동)</b>은 증권사에서 평일 16:10에 자동으로 채워져요. 새로 산 종목은 자동으로 추가되고, 다 판 종목은 자동으로 빠져요. <b style="color:var(--gold)">노란 줄(이자 자동)</b>은 원금(매입금)만 입력하면 평가금이 자동 계산돼요. 새 달은 25일 이후 첫 평일 16:10에 자동으로 만들어져요. 그 전에 미리 보고 싶으면 "전월 복제"를 눌러도 돼요(자동 표시도 그대로 복사돼요).</div>
     <div class="panel" style="padding:16px 20px;margin-bottom:14px"><div class="selrow" style="row-gap:10px">
       <label style="font-size:.82rem;color:var(--ink2)">조회 월</label><select id="monthSel" onchange="renderHold()"></select>
       <span style="width:1px;height:20px;background:var(--line2);margin:0 4px"></span>
@@ -823,7 +823,7 @@ function fillMonthSel(){let M=months();if(!M.includes(nowMonth))M.push(nowMonth)
 function addMonthStr(m,n){let[y,mo]=m.split('-').map(Number);mo+=n;y+=Math.floor((mo-1)/12);mo=((mo-1)%12+12)%12+1;return y+'-'+String(mo).padStart(2,'0');}
 window.addNextMonth=()=>{let base=nowMonth;months().forEach(m=>{if(m>base)base=m;});if(extraMonth&&extraMonth>base)base=extraMonth;const nx=addMonthStr(base,1);extraMonth=nx;viewMonth=nx;fillMonthSel();renderHold();};
 window.addRow=()=>{holdings.push({month:viewMonth,name:'새 종목',who:'수진',account:acctLabels()[0]||'',gubun:gubuns[0]||'주식',currency:'원화',buy:0,val:0});afterChange();};
-window.cloneMonth=()=>{const M=months().filter(m=>m<viewMonth).sort();if(!M.length){notyf.error('복제할 이전 달 데이터가 없어요.');return;}const prev=M[M.length-1];const src=holdings.filter(h=>h.month===prev);if(holdings.some(h=>h.month===viewMonth)&&!confirm('이 달에 이미 종목이 있어요. 그래도 이전 달('+mLabel(prev)+') 것을 추가로 복제할까요?'))return;src.forEach(h=>holdings.push({...h,month:viewMonth,source:'manual',synced_at:null}));afterChange();};
+window.cloneMonth=()=>{const M=months().filter(m=>m<viewMonth).sort();if(!M.length){notyf.error('복제할 이전 달 데이터가 없어요.');return;}const prev=M[M.length-1];const src=holdings.filter(h=>h.month===prev);if(holdings.some(h=>h.month===viewMonth)){if(!confirm('이 달에 이미 종목이 있어요. 이 달 종목을 지우고 이전 달('+mLabel(prev)+') 것으로 다시 채울까요?'))return;holdings=holdings.filter(h=>h.month!==viewMonth);}src.forEach(h=>holdings.push({...h,month:viewMonth}));afterChange();};
 
 /* ---- master ---- */
 const acctLabelOf=a=>((a.inst||'')+' '+(a.kind||'')).trim();
