@@ -509,7 +509,7 @@ async function doLogin(){
 async function doLogout(){await sb.auth.signOut();location.reload();}
 async function enterApp(){
   $('#loginScreen').style.display='none';$('#app').classList.add('on');
-  await loadAll();loaded=true;const filled=autofillAcctOwners();renderAll();renderRetire();countUpOnce();if(filled)persist();
+  const dd=await loadAll();loaded=true;const filled=autofillAcctOwners();renderAll();renderRetire();countUpOnce();if(filled||dd)persist();
 }
 $('#pw').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 
@@ -519,15 +519,22 @@ let saveTimer,lastStamp=null;
 // holdings 의 가장 최근 created_at (자동입력 스크립트도 쓸 때 created_at 을 갱신함)
 async function maxStamp(){const r=await sb.from('holdings').select('created_at').order('created_at',{ascending:false}).limit(1);if(r.error)throw r.error;return r.data&&r.data[0]?r.data[0].created_at:null;}
 function persist(){if(!loaded)return;clearTimeout(saveTimer);setSave('dirty');saveTimer=setTimeout(saveAll,900);}
+let saving=false,saveAgain=false;
+// 저장이 겹치면 끝난 뒤 한 번 더 저장 (겹치면 방금 넣은 행을 다른 곳 변경으로 착각해서 보유내역이 중복됨)
 async function saveAll(){
+  if(saving){saveAgain=true;return;}
+  saving=true;
+  try{await saveOnce();}finally{saving=false;if(saveAgain){saveAgain=false;saveAll();}}
+}
+async function saveOnce(){
   setSave('saving');
   try{
     const cur=await maxStamp();
     if(lastStamp&&cur&&cur>lastStamp){
       // 보유내역만 최신으로 다시 불러오고, 월별 기록·노후 설계는 지금 화면 값을 지켜서 저장
       const keepLogs=JSON.parse(JSON.stringify(logs)),keepSav=JSON.parse(JSON.stringify(savings)),keepCfg=JSON.parse(JSON.stringify(config));
-      await loadAll();logs=keepLogs;savings=keepSav;config=keepCfg;
-      await saveSide();setSave('saved');renderAll();renderRetire();
+      const dd=await loadAll();logs=keepLogs;savings=keepSav;config=keepCfg;
+      await saveSide();setSave('saved');renderAll();renderRetire();if(dd)persist();
       notyf.open({type:'info',message:'보유내역이 다른 곳(자동입력·다른 기기)에서 바뀌어서 최신으로 다시 불러왔어요. 월별 기록·노후 설계는 그대로 저장됐어요. 보유내역에 방금 넣은 값만 확인해 주세요.',duration:7000});
       return;
     }
@@ -541,9 +548,10 @@ async function saveAll(){
     if(holdings.length){
       const ins=await sb.from('holdings').insert(holdings.map(h=>({month:h.month,name:h.name,who:h.who,account:h.account,gubun:h.gubun,currency:h.currency,buy:h.buy,val:h.val,source:h.source||'manual',synced_at:h.source==='manual'?null:(h.synced_at||null),code:h.code||null}))).select('id,created_at');
       if(ins.error)throw ins.error;
+      // 내가 방금 넣은 행은 충돌로 안 보게 옛 행 삭제 전에 먼저 기록
+      lastStamp=ins.data.reduce((m,x)=>x.created_at>m?x.created_at:m,'');
       const minNew=Math.min(...ins.data.map(x=>x.id));
       const del=await sb.from('holdings').delete().lt('id',minNew);if(del.error)throw del.error;
-      lastStamp=ins.data.reduce((m,x)=>x.created_at>m?x.created_at:m,'');
     }else{const del=await sb.from('holdings').delete().gte('id',0);if(del.error)throw del.error;}
     await saveSide();
     setSave('saved');
@@ -573,12 +581,18 @@ async function loadAll(){
   logs={};try{const lg=await sb.from('monthly_log').select('*');(lg.data||[]).forEach(r=>logs[r.month]={income:Number(r.income),expense:Number(r.expense),invested:Number(r.invested),feedback:r.feedback||''});}catch(e){console.error('monthly_log 로드 실패(테이블 확인):',e);}
   accounts=a.data||[];gubuns=(g.data||[]).map(x=>x.name);cats=(c.data||[]).map(x=>({name:x.name,gubun:x.gubun,weight:Number(x.weight)}));
   holdings=(h.data||[]).map(x=>({month:x.month,name:x.name,who:x.who,account:x.account,gubun:x.gubun,currency:x.currency,buy:Number(x.buy),val:Number(x.val),source:x.source||'manual',synced_at:x.synced_at||null,code:x.code||null}));
+  // 다른 탭이 저장하는 도중에 읽히면 옛 행·새 행이 같이 와서 중복됨 → 완전히 똑같은 행은 하나만 남김
+  const seen=new Set(),before=holdings.length;
+  holdings=holdings.filter(x=>{const k=JSON.stringify(x);if(seen.has(k))return false;seen.add(k);return true;});
+  const dupRemoved=before-holdings.length;
+  if(dupRemoved)notyf.open({type:'info',message:`중복된 보유내역 ${dupRemoved}건을 정리했어요.`,duration:6000});
   lastStamp=(h.data||[]).reduce((m,x)=>x.created_at>m?x.created_at:m,'')||null;
   savings={};(rs.data||[]).forEach(r=>savings[r.year]=Number(r.monthly));
   if(rc.data&&rc.data[0]){const x=rc.data[0];config={start_asset:Number(x.start_asset),rate:Number(x.rate),infl:Number(x.infl),end_year:x.end_year};}
   // 빈 DB면 기본 데이터 시드
   if(!accounts.length&&!gubuns.length&&!holdings.length){seedDefault();await saveAll();}
   setSave('saved');
+  return dupRemoved;
 }
 function seedDefault(){
   gubuns=['주식','채권','금','현금'];
