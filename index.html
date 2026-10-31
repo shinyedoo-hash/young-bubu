@@ -523,7 +523,14 @@ async function saveAll(){
   setSave('saving');
   try{
     const cur=await maxStamp();
-    if(lastStamp&&cur&&cur>lastStamp){notyf.open({type:'info',message:'다른 곳(자동입력·다른 기기)에서 데이터가 바뀌어서 최신으로 다시 불러왔어요. 방금 입력한 값은 다시 넣어주세요.',duration:7000});await loadAll();renderAll();renderRetire();return;}
+    if(lastStamp&&cur&&cur>lastStamp){
+      // 보유내역만 최신으로 다시 불러오고, 월별 기록·노후 설계는 지금 화면 값을 지켜서 저장
+      const keepLogs=JSON.parse(JSON.stringify(logs)),keepSav=JSON.parse(JSON.stringify(savings)),keepCfg=JSON.parse(JSON.stringify(config));
+      await loadAll();logs=keepLogs;savings=keepSav;config=keepCfg;
+      await saveSide();setSave('saved');renderAll();renderRetire();
+      notyf.open({type:'info',message:'보유내역이 다른 곳(자동입력·다른 기기)에서 바뀌어서 최신으로 다시 불러왔어요. 월별 기록·노후 설계는 그대로 저장됐어요. 보유내역에 방금 넣은 값만 확인해 주세요.',duration:7000});
+      return;
+    }
     await sb.from('accounts').delete().gte('id',0);
     if(accounts.length)await sb.from('accounts').insert(accounts.map(a=>({who:a.who,inst:a.inst,kind:a.kind,num:a.num})));
     await sb.from('gubuns').delete().gte('id',0);
@@ -538,13 +545,20 @@ async function saveAll(){
       const del=await sb.from('holdings').delete().lt('id',minNew);if(del.error)throw del.error;
       lastStamp=ins.data.reduce((m,x)=>x.created_at>m?x.created_at:m,'');
     }else{const del=await sb.from('holdings').delete().gte('id',0);if(del.error)throw del.error;}
-    await sb.from('retire_savings').delete().gte('year',0);
-    const sv=Object.entries(savings).map(([year,monthly])=>({year:+year,monthly}));
-    if(sv.length)await sb.from('retire_savings').insert(sv);
-    await sb.from('retire_config').upsert({id:1,start_asset:config.start_asset,rate:config.rate,infl:config.infl,end_year:config.end_year});
-    try{await sb.from('monthly_log').delete().neq('month','');const lg=Object.entries(logs).filter(([m,d])=>d.income||d.expense||d.invested||d.feedback).map(([m,d])=>({month:m,income:d.income||0,expense:d.expense||0,invested:d.invested||0,feedback:d.feedback||''}));if(lg.length)await sb.from('monthly_log').insert(lg);}catch(e){console.error('monthly_log 저장 실패(테이블 확인):',e);}
+    await saveSide();
     setSave('saved');
   }catch(e){console.error(e);setSave('error');notyf.error('저장에 실패했어요. 인터넷 연결을 확인하고 다시 입력해 주세요.');}
+}
+// 노후 설계·월별 기록 저장 (보유내역과 무관해서 충돌 시에도 따로 저장)
+async function saveSide(){
+  await sb.from('retire_savings').delete().gte('year',0);
+  const sv=Object.entries(savings).map(([year,monthly])=>({year:+year,monthly}));
+  if(sv.length)await sb.from('retire_savings').insert(sv);
+  await sb.from('retire_config').upsert({id:1,start_asset:config.start_asset,rate:config.rate,infl:config.infl,end_year:config.end_year});
+  try{const lg=Object.entries(logs).filter(([m,d])=>d.income||d.expense||d.invested||d.feedback).map(([m,d])=>({month:m,income:d.income||0,expense:d.expense||0,invested:d.invested||0,feedback:d.feedback||''}));
+    if(lg.length){const up=await sb.from('monthly_log').upsert(lg,{onConflict:'month'});if(up.error)throw up.error;}
+    const keep=lg.map(x=>x.month);let q=sb.from('monthly_log').delete().neq('month','');if(keep.length)q=q.not('month','in','('+keep.map(m=>'"'+m+'"').join(',')+')');const d=await q;if(d.error)throw d.error;
+  }catch(e){console.error('monthly_log 저장 실패(테이블 확인):',e);}
 }
 async function loadAll(){
   setSave('loading');
