@@ -294,6 +294,46 @@
     .panel{padding:18px 16px;border-radius:16px}
     .arow2{grid-template-columns:54px 1fr;}.arow2 .amt2{grid-column:1/-1;text-align:left}
   }
+
+  /* ═══ 가안: AI 티 줄이기 (Impeccable craft-floor + 디터 람스) ═══ */
+  /* 1. 강조색은 '번 돈/잃은 돈' 에만. 메뉴·칩·포커스는 잉크색 */
+  :root{--accent-soft:rgba(236,238,240,.07);--nav-on:#eceef0}
+  body.light{--accent-soft:rgba(28,26,23,.06);--nav-on:#1c1a17}
+  .nav button.on{background:var(--accent-soft);color:var(--nav-on)}
+  .chip.on{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+  .seg button.on{box-shadow:none;background:var(--line2)}
+  ::selection{background:color-mix(in srgb,var(--ink) 18%,transparent)}
+  :focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:6px}
+  *{scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
+
+  /* 2. 상자 걷어내기 — 묶음은 여백과 가는 선 하나로 */
+  .panel,.card{background:none;border:none;box-shadow:none;border-radius:0;padding:28px 0 8px;border-top:1px solid var(--line);margin-bottom:8px}
+  .row2{gap:48px}
+  .panel h3{font-size:1.05rem}
+  .gmeta>div,.rcfg .f,.bigres .b,.bigres .b.alt,.banner,.invest-in,.cmpopt,.fillbar{background:none;border:none;border-radius:0;padding-left:0;padding-right:0}
+  .gmeta>div{border-left:1px solid var(--line);padding-left:12px}
+  .gmeta>div:first-child{border-left:none;padding-left:0}
+  .side{background:var(--bg);border-right-color:var(--line)}
+  .ph .when{background:none;border:none;padding:0}
+
+  /* 3. 꼬리표(eyebrow) 금지 */
+  .brand .nm small{display:none}
+
+  /* 4. 왼쪽 색 막대·알약 걷기 — 자동 행은 글자 하나로 */
+  .autorow td,.calcrow td,tbody tr.autorow:hover td,tbody tr.calcrow:hover td{background:none}
+  .autorow td:first-child,.calcrow td:first-child{box-shadow:none}
+  .autobadge{background:none;color:var(--blue);font-weight:600}
+  .autobadge.calc{background:none;color:var(--gold)}
+  .pill,.pill.up,.pill.down{background:none;padding:0}
+
+  /* 5. 총자산 한 덩어리 */
+  .sum2{padding:8px 0 28px}
+  .sum2 .tot{font-family:var(--num);font-feature-settings:"tnum";font-size:3rem;font-weight:800;letter-spacing:-.04em;line-height:1}
+  .sum2 .say{font-size:1.02rem;color:var(--ink2);margin-top:12px}
+  .sum2 .say b{font-family:var(--num);font-feature-settings:"tnum";color:var(--ink)}
+  .sum2 .facts{display:flex;flex-wrap:wrap;gap:6px 22px;margin-top:18px;font-size:.84rem;color:var(--muted)}
+  .sum2 .facts b{color:var(--ink2);font-family:var(--num);font-feature-settings:"tnum";font-weight:600}
+  .cards{display:block;margin-bottom:0}
 </style>
 </head>
 <body>
@@ -311,7 +351,7 @@
 <!-- APP -->
 <div class="app" id="app">
 <aside class="side">
-  <div class="brand"><div class="mark">영</div><div class="nm">영부부 돈터뷰<small>OUR MONEY INTERVIEW</small></div></div>
+  <div class="brand"><div class="mark">영</div><div class="nm">영부부 돈터뷰</div></div>
   <nav class="nav">
     <button class="on" data-tab="dash"><i data-lucide="layout-dashboard"></i>대시보드</button>
     <button data-tab="alloc"><i data-lucide="pie-chart"></i>자산배분</button>
@@ -323,8 +363,8 @@
   <div class="foot">
     <div class="ss" id="syncInfo" style="color:var(--muted)"></div>
     <div class="ss"><span class="dotst" id="saveDot"></span><span id="saveTxt">불러오는 중…</span></div>
-    <button class="logout" onclick="toggleHide()" id="hideBtn">🙈 금액 숨기기</button>
-    <button class="logout" onclick="toggleTheme()" id="themeBtn">🌙 어두운 테마</button>
+    <button class="logout" onclick="toggleHide()" id="hideBtn">금액 숨기기</button>
+    <button class="logout" onclick="toggleTheme()" id="themeBtn">밝은 화면으로</button>
     <button class="logout" onclick="doLogout()">로그아웃</button>
   </div>
 </aside>
@@ -368,7 +408,7 @@
     </div>
   </section>
   <section class="page" id="alloc">
-    <div class="ph"><div><h1>자산배분 <span style="font-size:.7rem;color:var(--muted);font-weight:400">ALLOCATION</span></h1><p>분류별 비중을 정하고 이번 달 투자금을 배분</p></div></div>
+    <div class="ph"><div><h1>자산배분</h1><p>분류별 비중을 정하고 이번 달 투자금을 배분</p></div></div>
     <div class="panel">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div><h3>분류 & 비중</h3><div class="desc" style="margin:0">비중 합이 24면 나누기 편해요(2·3·4·6·12 배수)</div></div><button class="btn ghost sm" onclick="addCat()"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>분류 추가</button></div>
       <div class="atable"><div class="hh"><span>분류명</span><span>구분</span><span style="text-align:center">비중</span><span style="text-align:center">%</span><span style="text-align:right">기계분배</span></div><div id="catBody"></div></div>
@@ -396,7 +436,7 @@
   <section class="page" id="hold">
     <div class="ph"><div><h1>보유내역</h1><p>평가금만 수정 · 입력 1원 단위, 표시 만원</p></div>
       <div style="display:flex;gap:9px"><button class="btn ghost" onclick="addRow()"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>새 종목</button><button class="btn ghost" onclick="cloneMonth()"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>전월 복제</button><button class="btn ghost" onclick="addNextMonth()"><svg viewBox="0 0 24 24"><path d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>다음 달</button></div></div>
-    <div class="banner"><i data-lucide="lightbulb" class="ic"></i> 평가금 칸 <b>클릭=원 단위 입력</b>, 벗어나면 만원 표시 · 입력하면 <b>자동 저장</b>돼요(왼쪽 아래 상태 확인). <b style="color:var(--blue)">파란 줄(자동)</b>은 증권사에서 평일 16:10에 자동으로 채워져요. 새로 산 종목은 자동으로 추가되고, 다 판 종목은 자동으로 빠져요. <b style="color:var(--gold)">노란 줄(이자 자동)</b>은 원금(매입금)만 입력하면 평가금이 자동 계산돼요. 새 달은 25일 이후 첫 평일 16:10에 자동으로 만들어져요. 그 전에 미리 보고 싶으면 "전월 복제"를 눌러도 돼요(자동 표시도 그대로 복사돼요).</div>
+    <div class="banner">평가금 칸 <b>클릭=원 단위 입력</b>, 벗어나면 만원 표시 · 입력하면 <b>자동 저장</b>돼요(왼쪽 아래 상태 확인). <b style="color:var(--blue)">파란 줄(자동)</b>은 증권사에서 평일 16:10에 자동으로 채워져요. 새로 산 종목은 자동으로 추가되고, 다 판 종목은 자동으로 빠져요. <b style="color:var(--gold)">노란 줄(이자 자동)</b>은 원금(매입금)만 입력하면 평가금이 자동 계산돼요. 새 달은 25일 이후 첫 평일 16:10에 자동으로 만들어져요. 그 전에 미리 보고 싶으면 "전월 복제"를 눌러도 돼요(자동 표시도 그대로 복사돼요).</div>
     <div class="panel" style="padding:16px 20px;margin-bottom:14px"><div class="selrow" style="row-gap:10px">
       <label style="font-size:.82rem;color:var(--ink2)">조회 월</label><select id="monthSel" onchange="renderHold()"></select>
       <span style="width:1px;height:20px;background:var(--line2);margin:0 4px"></span>
@@ -455,7 +495,7 @@
     </div>
     <div class="bigres" id="futRes"></div>
     <div class="fillbar"><span>범위 채우기</span><select id="fA"></select><span>~</span><select id="fB"></select><span>월</span><input id="fV" placeholder="만원"><span style="color:var(--muted)">만</span><button class="btn sm" onclick="rangeFill()">채우기</button><button class="btn ghost sm" onclick="selectAll()">전체 선택</button><span class="selinfo" id="selInfo"></span></div>
-    <div class="banner"><i data-lucide="lightbulb" class="ic"></i> 저축액 칸을 <b>클릭하면 바로 입력</b> · 여러 해는 위 <b>범위+금액</b>으로 채우기 · 표는 은퇴 연도까지 쭉 펼쳐서 보여요</div>
+    <div class="banner">저축액 칸을 <b>클릭하면 바로 입력</b> · 여러 해는 위 <b>범위+금액</b>으로 채우기 · 표는 은퇴 연도까지 쭉 펼쳐서 보여요</div>
     <div class="panel" style="padding:14px 16px">
       <div class="rtable"><table><thead><tr><th>연도</th><th class="r">월 저축액(만)</th><th class="r">당해 연말 자산</th><th class="r">복리 만기액</th><th class="r">오늘 가치(실질)</th></tr></thead><tbody id="rBody"></tbody></table></div>
       <div style="font-size:.72rem;color:var(--muted);margin-top:10px">복리 만기액 = 그해 저축액 × (1+수익률)^(은퇴연도−해당연도)</div>
@@ -619,18 +659,14 @@ function renderCards(){
   const prevM=months().filter(m=>m<nowMonth).pop(),prev=holdings.filter(h=>h.month===prevM);
   const dTv=tv-sum(prev,'val'),dTb=tb-sum(prev,'buy'),dMk=dTv-dTb;
   let usd=0;cur.forEach(h=>{if(h.currency==='달러')usd+=h.val;});const up=tv?usd/tv*100:0;
-  const auto=cur.filter(h=>h.source==='auto'||h.source==='calc'),autoV=sum(auto,'val');
+  const auto=cur.filter(h=>h.source==='auto'||h.source==='calc');
   const sg=v=>(v>=0?'+':'')+won(v),cl=v=>v>=0?'up':'down';
   $('#curMonth').textContent=mLabel(nowMonth).split('.')[1]+'월';$('#curPeriod').textContent=mPeriod(nowMonth);
-  $('#sumCards').innerHTML=`
-  <div class="card hero"><div class="lab">총 자산</div><div class="big" data-count="${tv}">${wonFull(tv)}</div>
-    <div class="sub">원금 <b>${won(tb)}</b> · 번 돈 <b class="${cl(g)}">${sg(g)}</b> <span class="pill ${cl(g)}">${pct(r)}</span></div></div>
-  <div class="card"><div class="lab">지난달보다${prevM?` <span style="opacity:.7">(${mLabel(prevM)})</span>`:''}</div><div class="big ${prevM?cl(dTv):''}" ${prevM?`data-count="${dTv}" data-fmt="sg"`:''}>${prevM?sg(dTv):'—'}</div>
-    <div class="sub">${prevM?`넣은 돈 <b>${sg(dTb)}</b><br>시장 <b class="${cl(dMk)}">${sg(dMk)}</b>`:'비교할 달이 없어요'}</div></div>
-  <div class="card"><div class="lab">달러 자산 비중</div><div class="big">${up.toFixed(0)}%</div>
-    <div class="sub"><div style="height:6px;border-radius:99px;background:var(--bg2);overflow:hidden;margin:4px 0 7px"><div style="height:100%;width:${up}%;background:var(--blue)"></div></div>원화 ${(100-up).toFixed(0)}%</div></div>
-  <div class="card"><div class="lab"><span style="width:7px;height:7px;border-radius:50%;background:${auto.length?'var(--blue)':'var(--muted)'}"></span>자동 입력</div><div class="big">${auto.length}<span style="font-size:.9rem;color:var(--muted);font-weight:600"> / ${cur.filter(h=>!isAdj(h)).length}행</span></div>
-    <div class="sub">${auto.length?`<b>${won(autoV)}</b> · 평일 16:10 갱신`:'이번 달 자동 입력 전'}</div></div>`;
+  $('#sumCards').innerHTML=`<div class="sum2">
+    <div class="tot">${wonFull(tv)}</div>
+    <div class="say">${prevM?`지난달보다 <b class="${cl(dTv)}">${sg(dTv)}</b> — 넣은 돈 <b>${sg(dTb)}</b>, 시장 <b class="${cl(dMk)}">${sg(dMk)}</b>`:'비교할 지난달이 아직 없어요'}</div>
+    <div class="facts"><span>원금 <b>${won(tb)}</b></span><span>번 돈 <b class="${cl(g)}">${sg(g)} (${pct(r)})</b></span><span>달러 <b>${up.toFixed(0)}%</b></span><span>자동 입력 <b>${auto.length}/${cur.filter(h=>!isAdj(h)).length}행</b> · 평일 16:10</span></div>
+  </div>`;
 }
 function niceStep(m){const raw=m/6,p=Math.pow(10,Math.floor(Math.log10(raw||1)));return[1,2,2.5,5,10].map(c=>c*p).find(c=>c>=raw)||10*p;}
 function niceMax(e){const st=niceStep(e);return Math.max(st,Math.ceil(e*1.08/st)*st);}
@@ -975,14 +1011,14 @@ function renderLimits(){const box=$('#limBox');if(!box)return;const cm=lastMonth
   box.innerHTML=(rows||'<div class="empty">ISA·IRP·연금 계좌가 보유내역에 없어요</div>')+`<div style="font-size:.72rem;color:var(--muted);margin-top:8px">${partial?`기록이 ${mLabel(baseM)}부터라 그 전 납입은 빠져 있어요 · `:''}매입금 증가로 추정 · 올해 남은 ${dl}일</div>`;}
 
 function renderTop5(){try{renderDrift();renderWaterfall();renderGoal();renderLimits();renderRebal();}catch(e){console.error('TOP5 렌더 오류',e);}}
-function setHideBtn(){const b=$('#hideBtn');if(b)b.textContent=HIDE?'🙉 금액 보이기':'🙈 금액 숨기기';}
+function setHideBtn(){const b=$('#hideBtn');if(b)b.textContent=HIDE?'금액 보이기':'금액 숨기기';}
 window.toggleHide=()=>{HIDE=!HIDE;try{localStorage.setItem('hideAmt',HIDE?'1':'0');}catch(e){}setHideBtn();if(loaded){renderAll();renderRetire();}};
 setHideBtn();
 function renderAll(){renderSyncInfo();fillMonthSel();renderCards();renderBar();renderCompEC();renderAllocEC();renderCmpChips();renderCmp();renderCats();renderAllocAll();renderSim();renderHold();renderMaster();renderLog();fillYearSelects();renderTop5();}
 function afterChange(){renderAll();renderRetire();persist();}
 
 /* ---- theme ---- */
-function setTheme(t){document.body.classList.toggle('light',t==='light');try{localStorage.setItem('theme',t);}catch(e){}const b=$('#themeBtn');if(b)b.textContent=t==='light'?'☀️ 밝은 테마':'🌙 어두운 테마';if(loaded){try{renderBar();renderCmp();renderCompEC();renderAllocEC();renderWaterfall();}catch(e){}}}
+function setTheme(t){document.body.classList.toggle('light',t==='light');try{localStorage.setItem('theme',t);}catch(e){}const b=$('#themeBtn');if(b)b.textContent=t==='light'?'어두운 화면으로':'밝은 화면으로';if(loaded){try{renderBar();renderCmp();renderCompEC();renderAllocEC();renderWaterfall();}catch(e){}}}
 window.toggleTheme=()=>setTheme(document.body.classList.contains('light')?'dark':'light');
 try{setTheme(localStorage.getItem('theme')||'dark');}catch(e){setTheme('dark');}
 
