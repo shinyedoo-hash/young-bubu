@@ -334,6 +334,15 @@
   .sum2 .facts{display:flex;flex-wrap:wrap;gap:6px 22px;margin-top:18px;font-size:.84rem;color:var(--muted)}
   .sum2 .facts b{color:var(--ink2);font-family:var(--num);font-feature-settings:"tnum";font-weight:600}
   .cards{display:block;margin-bottom:0}
+
+  /* 달마다 변화 */
+  .flowsum{display:flex;flex-wrap:wrap;gap:6px 22px;font-size:.84rem;color:var(--muted);margin:2px 0 6px}
+  .flowctl{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+  .flowpick{display:none;align-items:center;gap:6px;font-size:.8rem;color:var(--muted)}
+  .flowpick.on{display:flex}
+  .flowpick select{background:var(--bg2);border:1px solid var(--line);border-radius:8px;color:var(--ink);font-family:var(--num);font-size:.82rem;padding:5px 8px;outline:none;cursor:pointer}
+  .flowpick select:focus{border-color:var(--ink2)}
+  .flowsum b{font-family:var(--num);font-feature-settings:"tnum";font-weight:700}
 </style>
 </head>
 <body>
@@ -388,6 +397,15 @@
         <h3 style="margin-top:22px">올해 세제혜택 한도</h3><div class="desc" id="limDesc">ISA 연 2,000만 · 연금저축+IRP 세액공제 연 900만 (1인당)</div>
         <div id="limBox"></div>
       </div>
+    </div>
+    <div class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+        <div><h3>달마다 변화</h3><div class="desc" id="flowDesc">달마다 넣은 돈과 시장이 각각 얼마나 바꿨나</div></div>
+        <div class="flowctl"><div class="seg" id="flowRange"><button data-v="recent">최근 6개월</button><button data-v="custom">기간 설정</button></div>
+          <div class="flowpick" id="flowPick"><select id="flowFrom"></select><span>~</span><select id="flowTo"></select></div></div>
+      </div>
+      <div class="flowsum" id="flowSum"></div>
+      <div id="flowEC" class="ec" style="height:320px"></div>
     </div>
     <div class="row2">
       <div class="panel"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap"><div><h3>자산 구성</h3><div class="desc" id="compDesc">크기 = 평가금 · 색 = 수익률 · 눌러서 확대</div></div><div class="seg" id="compMode"><button data-v="ret" class="on">수익률</button><button data-v="type">자산종류</button></div></div><div id="compEC" class="ec" style="height:380px"></div><div class="legendrow" id="compLegend" style="margin-top:8px"></div></div>
@@ -1010,7 +1028,7 @@ function renderLimits(){const box=$('#limBox');if(!box)return;const cm=lastMonth
     rows+=`<div class="limrow"><div class="who">${w}<small>${L.lab}</small></div><div class="lb"><div style="width:${r}%;background:${col}"></div></div><div class="lt">${won(paid)} / ${won(L.cap)} · ${rest>0?`남은 <b style="color:var(--ink)">${won(rest)}</b>`:'<b style="color:var(--accent)">다 채움</b>'}</div></div>`;}));
   box.innerHTML=(rows||'<div class="empty">ISA·IRP·연금 계좌가 보유내역에 없어요</div>')+`<div style="font-size:.72rem;color:var(--muted);margin-top:8px">${partial?`기록이 ${mLabel(baseM)}부터라 그 전 납입은 빠져 있어요 · `:''}매입금 증가로 추정 · 올해 남은 ${dl}일</div>`;}
 
-function renderTop5(){try{renderDrift();renderWaterfall();renderGoal();renderLimits();renderRebal();}catch(e){console.error('TOP5 렌더 오류',e);}}
+function renderTop5(){try{renderDrift();renderWaterfall();renderFlow();renderGoal();renderLimits();renderRebal();}catch(e){console.error('TOP5 렌더 오류',e);}}
 function setHideBtn(){const b=$('#hideBtn');if(b)b.textContent=HIDE?'금액 보이기':'금액 숨기기';}
 window.toggleHide=()=>{HIDE=!HIDE;try{localStorage.setItem('hideAmt',HIDE?'1':'0');}catch(e){}setHideBtn();if(loaded){renderAll();renderRetire();}};
 setHideBtn();
@@ -1018,12 +1036,62 @@ function renderAll(){renderSyncInfo();fillMonthSel();renderCards();renderBar();r
 function afterChange(){renderAll();renderRetire();persist();}
 
 /* ---- theme ---- */
-function setTheme(t){document.body.classList.toggle('light',t==='light');try{localStorage.setItem('theme',t);}catch(e){}const b=$('#themeBtn');if(b)b.textContent=t==='light'?'어두운 화면으로':'밝은 화면으로';if(loaded){try{renderBar();renderCmp();renderCompEC();renderAllocEC();renderWaterfall();}catch(e){}}}
+function setTheme(t){document.body.classList.toggle('light',t==='light');try{localStorage.setItem('theme',t);}catch(e){}const b=$('#themeBtn');if(b)b.textContent=t==='light'?'어두운 화면으로':'밝은 화면으로';if(loaded){try{renderBar();renderCmp();renderCompEC();renderAllocEC();renderWaterfall();renderFlow();}catch(e){}}}
 window.toggleTheme=()=>setTheme(document.body.classList.contains('light')?'dark':'light');
 try{setTheme(localStorage.getItem('theme')||'dark');}catch(e){setTheme('dark');}
 
 /* ---- icons ---- */
 try{window.lucide&&lucide.createIcons();}catch(e){}
+
+/* ---- 달마다 변화: 지난달 → 넣은 돈 → 시장 → 이번 달 을 달마다 이어 붙인 폭포 ---- */
+const FLOW_FROM='2025-12';
+let flowRange='recent',flowFrom=FLOW_FROM,flowTo='';
+try{flowRange=localStorage.getItem('flowRange')==='custom'?'custom':'recent';flowFrom=localStorage.getItem('flowFrom')||FLOW_FROM;flowTo=localStorage.getItem('flowTo')||'';}catch(e){}
+function flowAll(){const d=buildMonthly().filter(x=>x.m<=nowMonth),r=[];
+  for(let i=1;i<d.length;i++){const dep=d[i].buy-d[i-1].buy;r.push({m:d[i].m,pm:d[i-1].m,pv:d[i-1].val,v:d[i].val,dep,mk:(d[i].val-d[i-1].val)-dep});}
+  return r;}
+// 기간 설정: 시작 = 그 달까지 오는 변화부터(그 앞달 총자산에서 출발), 끝 = 비우면 이번 달
+function flowRows(){const r=flowAll();if(flowRange!=='custom')return r.slice(-6);
+  const to=flowTo&&flowTo>=flowFrom?flowTo:'9999';return r.filter(x=>x.m>=flowFrom&&x.m<=to);}
+function flowPicks(){const all=flowAll(),pk=$('#flowPick');if(!pk)return;pk.classList.toggle('on',flowRange==='custom');
+  const ms=all.map(x=>x.m),o=(sel)=>ms.map(m=>`<option value="${m}" ${m===sel?'selected':''}>${mLabel(m)}</option>`).join('');
+  const to=flowTo&&ms.includes(flowTo)?flowTo:ms[ms.length-1];
+  const fr=ms.includes(flowFrom)?flowFrom:(ms.find(m=>m>=flowFrom)||ms[0]);
+  $('#flowFrom').innerHTML=o(fr);$('#flowTo').innerHTML=o(to);}
+function renderFlow(){const ch=ecInit('flowEC');if(!ch)return;
+  $$('#flowRange button').forEach(b=>b.classList.toggle('on',b.dataset.v===flowRange));flowPicks();
+  const rows=flowRows(),sg=v=>(v>=0?'+':'')+won(v);
+  if(!rows.length){ch.clear();$('#flowDesc').textContent='비교할 달이 쌓이면 보여요';$('#flowSum').innerHTML='';return;}
+  const A=cv('--accent'),R=cv('--red'),B=cv('--blue'),P=cv('--principal'),INK=cv('--ink'),MU=cv('--muted'),LN=cv('--line');
+  const sd=rows.reduce((s,x)=>s+x.dep,0),sm=rows.reduce((s,x)=>s+x.mk,0);
+  $('#flowDesc').textContent=`${mLabel(rows[0].pm)} → 넣은 돈 → 시장 → ${mLabel(rows[0].m)} → … → ${mLabel(rows[rows.length-1].m)}`;
+  $('#flowSum').innerHTML=`<span>이 기간 넣은 돈 <b style="color:${B}">${sg(sd)}</b></span><span>시장 <b style="color:${sm>=0?A:R}">${sg(sm)}</b></span><span>합계 <b style="color:${INK}">${sg(sd+sm)}</b></span>`;
+  // 막대: [첫 달 총자산] + 달마다 [넣은 돈, 시장, 그 달 총자산]
+  const it=[{k:'t',m:rows[0].pm,base:0,h:rows[0].pv,v:rows[0].pv}];
+  rows.forEach(x=>{const mid=x.pv+x.dep;
+    it.push({k:'d',m:x.m,base:x.dep>=0?x.pv:mid,h:Math.abs(x.dep),v:x.dep,lo:Math.min(x.pv,mid),hi:Math.max(x.pv,mid)});
+    it.push({k:'k',m:x.m,base:x.mk>=0?mid:mid+x.mk,h:Math.abs(x.mk),v:x.mk,lo:Math.min(mid,x.v),hi:Math.max(mid,x.v)});
+    it.push({k:'t',m:x.m,base:0,h:x.v,v:x.v});});
+  const tops=it.map(q=>q.k==='t'?q.v:q.hi),bots=it.map(q=>q.k==='t'?q.v:q.lo);
+  const hi=Math.max(...tops),lo=Math.min(...bots),sp=Math.max(hi-lo,1e6);
+  const ymin=Math.max(0,lo-sp*.35),ymax=hi+sp*.15,few=it.length<=22;
+  const col=q=>q.k==='t'?P:q.k==='d'?(q.v>=0?B:R):(q.v>=0?A:R);
+  ch.setOption({...ecBase(),grid:{left:6,right:6,top:26,bottom:4,containLabel:true},
+    tooltip:{...ecTip(),trigger:'axis',axisPointer:{type:'shadow',shadowStyle:{color:cv('--accent-soft')}},formatter:ps=>{const q=it[ps[0].dataIndex];
+      return q.k==='t'?`<b>${mLabel(q.m)}</b> 총자산<br><b>${wonFull(q.v)}</b>`:`<b>${mLabel(q.m)}</b> ${q.k==='d'?'넣은 돈':'시장'}<br><b style="color:${col(q)}">${sg(q.v)}</b>`;}},
+    xAxis:{type:'category',data:it.map((q,i)=>i),axisTick:{show:false},axisLine:{lineStyle:{color:LN}},
+      axisLabel:{interval:0,color:MU,fontSize:11,formatter:(v,i)=>it[i].k==='t'?mLabel(it[i].m):''}},
+    yAxis:{type:'value',min:ymin,max:ymax,splitLine:{lineStyle:{color:LN,type:'dashed'}},splitNumber:4,
+      axisLabel:{color:MU,fontSize:10.5,showMinLabel:false,showMaxLabel:false,formatter:v=>HIDE?'':Math.round(v/1e4).toLocaleString()+'만'}},
+    series:[{type:'bar',stack:'w',silent:true,data:it.map(q=>q.base),itemStyle:{color:'transparent'},barCategoryGap:'22%'},
+      {type:'bar',stack:'w',barCategoryGap:'22%',data:it.map(q=>({value:q.h,itemStyle:{color:col(q),borderRadius:3}})),
+       label:{show:true,position:'top',distance:4,fontFamily:cv('--num'),fontWeight:700,fontSize:10.5,
+         formatter:p=>{const q=it[p.dataIndex];if(q.k==='t')return `{t|${won(q.v)}}`;return few?`{${q.v>=0?(q.k==='d'?'b':'u'):'r'}|${sg(q.v)}}`:'';},
+         rich:{t:{color:INK,fontWeight:800},b:{color:B},u:{color:A},r:{color:R}}}}]},true);}
+$$('#flowRange button').forEach(b=>b.onclick=()=>{flowRange=b.dataset.v;try{localStorage.setItem('flowRange',flowRange);}catch(e){}renderFlow();});
+['flowFrom','flowTo'].forEach(id=>{const el=$('#'+id);if(el)el.onchange=()=>{flowFrom=$('#flowFrom').value;flowTo=$('#flowTo').value;
+  if(flowTo<flowFrom){flowTo=flowFrom;}try{localStorage.setItem('flowFrom',flowFrom);localStorage.setItem('flowTo',flowTo);}catch(e){}renderFlow();};});
+
 /* ---- boot ---- */
 (async()=>{
   if(SUPABASE_KEY.includes('붙여넣기')){$('#loginErr').textContent='코드에 anon key를 먼저 넣어주세요';return;}
