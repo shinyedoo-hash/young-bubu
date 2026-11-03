@@ -793,7 +793,18 @@ function renderAllocEC(){
             {name:'지금',type:'pie',radius:['53%','73%'],center:['50%','46%'],data:outer,itemStyle:{borderColor:cv('--panel'),borderWidth:3,borderRadius:6},
              label:{color:cv('--ink2'),fontFamily:cv('--num'),formatter:p=>`${p.name}\n{b|${p.percent.toFixed(0)}%}`,rich:{b:{color:cv('--ink'),fontWeight:800,fontSize:13,fontFamily:cv('--num')}}},labelLine:{length:8,length2:8,lineStyle:{color:cv('--line2')}}}]},true);
 }
-const ecResize=()=>Object.values(EC).forEach(c=>c.resize());
+const ecResize=()=>{Object.values(EC).forEach(c=>c.resize());Object.values(BRK).forEach(f=>{try{f();}catch(e){}});};
+// 축이 0 에서 시작하지 않을 때 막대 밑동을 가로지르는 물결선 — '여기 아래는 생략' 표시 (창 크기가 바뀌면 다시 긋는다)
+const BRK={};
+function ecBreak(id,ch,ymin,n){const draw=()=>{if(!(ymin>0)){ch.setOption({graphic:[]});return;}
+    const y=ch.convertToPixel({yAxisIndex:0},ymin),x0=ch.convertToPixel({xAxisIndex:0},0),x1=ch.convertToPixel({xAxisIndex:0},n-1);
+    if(![y,x0,x1].every(Number.isFinite))return;
+    const w=n>1?(x1-x0)/(n-1):60,a=x0-w/2-6,b=x1+w/2+6,yy=y-14,pts=[];
+    for(let x=a,i=0;x<=b+6;x+=7,i++)pts.push([x,yy+(i%2?3:-3)]);
+    const bg=cv('--bg'),mu=cv('--muted'),pl=(dy,c,lw,z)=>({type:'polyline',silent:true,z,shape:{points:pts.map(p=>[p[0],p[1]+dy])},style:{stroke:c,lineWidth:lw,fill:null}});
+    ch.setOption({graphic:[pl(0,bg,9,100),pl(-4,mu,1.2,101),pl(4,mu,1.2,101)]});};
+  BRK[id]=draw;draw();}
+
 /* ---- 숫자 올라가는 효과 (CountUp.js) — 처음 열 때 한 번만 ---- */
 let __counted=false;
 function countUpOnce(){if(__counted||!window.countUp)return;__counted=true;$$('[data-count]').forEach(el=>{const v=+el.dataset.count,f=el.dataset.fmt==='sg'?(x=>(x>=0?'+':'')+won(x)):wonFull;const c=new countUp.CountUp(el,v,{duration:1.3,formattingFn:f,startVal:0});if(!c.error)c.start();});}
@@ -998,7 +1009,7 @@ function renderWaterfall(){const ch=ecInit('wfEC');if(!ch)return;const d=buildMo
     yAxis:{type:'value',min:ymin,max:ymax,splitLine:{lineStyle:{color:LN,type:'dashed'}},axisLabel:{color:MU,fontSize:10.5,showMinLabel:false,showMaxLabel:false,formatter:v=>HIDE?'':Math.round(v/1e4).toLocaleString()+'만'},splitNumber:4},
     series:[{type:'bar',stack:'w',silent:true,data:base,itemStyle:{color:'transparent'},barMaxWidth:64},
       {type:'bar',stack:'w',data:h.map((v,i)=>({value:v,itemStyle:{color:col[i],borderRadius:5}})),barMaxWidth:64,
-       label:{show:true,position:'top',distance:6,fontFamily:cv('--num'),fontWeight:800,fontSize:12.5,formatter:q=>`{${q.dataIndex===0||q.dataIndex===3?'t':(q.dataIndex===1?dep:mk)>=0?'u':'d'}|${lab[q.dataIndex]}}`,rich:{t:{color:INK,fontWeight:800},u:{color:A,fontWeight:800},d:{color:R,fontWeight:800}}}}]},true);}
+       label:{show:true,position:'top',distance:6,fontFamily:cv('--num'),fontWeight:800,fontSize:12.5,formatter:q=>`{${q.dataIndex===0||q.dataIndex===3?'t':(q.dataIndex===1?dep:mk)>=0?'u':'d'}|${lab[q.dataIndex]}}`,rich:{t:{color:INK,fontWeight:800},u:{color:A,fontWeight:800},d:{color:R,fontWeight:800}}}}]},true);ecBreak('wfEC',ch,ymin,4);}
 
 let GOAL=5e8;try{const g=+localStorage.getItem('goal');if(g>0)GOAL=g;}catch(e){}
 function renderGoal(){const box=$('#goalBox');if(!box)return;const d=buildMonthly().filter(x=>x.m<=nowMonth),n=d.length;const tv=n?d[n-1].val:0,r=GOAL?Math.min(tv/GOAL*100,100):0;
@@ -1074,7 +1085,7 @@ function renderFlow(){const ch=ecInit('flowEC');if(!ch)return;
     it.push({k:'t',m:x.m,base:0,h:x.v,v:x.v});});
   const tops=it.map(q=>q.k==='t'?q.v:q.hi),bots=it.map(q=>q.k==='t'?q.v:q.lo);
   const hi=Math.max(...tops),lo=Math.min(...bots),sp=Math.max(hi-lo,1e6);
-  const ymin=Math.max(0,lo-sp*.35),ymax=hi+sp*.15,few=it.length<=22;
+  const ymin=Math.max(0,lo-sp*.18),ymax=hi+sp*.12,few=it.length<=22;
   const col=q=>q.k==='t'?P:q.k==='d'?(q.v>=0?B:R):(q.v>=0?A:R);
   ch.setOption({...ecBase(),grid:{left:6,right:6,top:26,bottom:4,containLabel:true},
     tooltip:{...ecTip(),trigger:'axis',axisPointer:{type:'shadow',shadowStyle:{color:cv('--accent-soft')}},formatter:ps=>{const q=it[ps[0].dataIndex];
@@ -1087,7 +1098,7 @@ function renderFlow(){const ch=ecInit('flowEC');if(!ch)return;
       {type:'bar',stack:'w',barCategoryGap:'22%',data:it.map(q=>({value:q.h,itemStyle:{color:col(q),borderRadius:3}})),
        label:{show:true,position:'top',distance:4,fontFamily:cv('--num'),fontWeight:700,fontSize:10.5,
          formatter:p=>{const q=it[p.dataIndex];if(q.k==='t')return `{t|${won(q.v)}}`;return few?`{${q.v>=0?(q.k==='d'?'b':'u'):'r'}|${sg(q.v)}}`:'';},
-         rich:{t:{color:INK,fontWeight:800},b:{color:B},u:{color:A},r:{color:R}}}}]},true);}
+         rich:{t:{color:INK,fontWeight:800},b:{color:B},u:{color:A},r:{color:R}}}}]},true);ecBreak('flowEC',ch,ymin,it.length);}
 $$('#flowRange button').forEach(b=>b.onclick=()=>{flowRange=b.dataset.v;try{localStorage.setItem('flowRange',flowRange);}catch(e){}renderFlow();});
 ['flowFrom','flowTo'].forEach(id=>{const el=$('#'+id);if(el)el.onchange=()=>{flowFrom=$('#flowFrom').value;flowTo=$('#flowTo').value;
   if(flowTo<flowFrom){flowTo=flowFrom;}try{localStorage.setItem('flowFrom',flowFrom);localStorage.setItem('flowTo',flowTo);}catch(e){}renderFlow();};});
